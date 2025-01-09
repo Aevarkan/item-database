@@ -2,18 +2,6 @@ import { world, system, ItemStack, Player } from '@minecraft/server';
 /**
  * @Class Quick Item Database V3.7 by Carchi77
  * @Contributors Drag0nD - Coptaine
- * @ Made to fix script api's missing method to save items as object.
- * @ Optimized for low end devices while keeping fast loading times.
- * @ Does NOT impact ingame performance.
- * @ Uses entities inventory and structures.
- * @ Zero data loss: items are saved as a perfect clone.
- * @Example how to setup a database:
- * ```
- * // Initializing a database with a namespace and logs active
- * const itemDatabase = new QuickItemDatabase("namespace", 1, true);
- * 
- * 
- * ```
 **/
 export class QuickItemDatabase {
     /**
@@ -146,19 +134,9 @@ export class QuickItemDatabase {
 
     /**
      * Sets a value as a key in the item database.
-     * @param {string} key The unique identifier of the value.
+     * @param {string} key The unique identifier of the value. The key can be lower-case letters (a-z), numbers (0-9), undescore (_).
      * @param {ItemStack[] | ItemStack} value The `ItemStack[]` or `itemStack` value to set.
      * @throws Throws if `value` is an array that has more than 255 items.
-     * @Example Example:
-     * ```
-     * // Setting an individual item as a key
-     * itemDatabase.set("item_0", itemStack); //set the itemstack as a key
-     * // The key can be lower-case letters (a-z), numbers (0-9), undescore (_)
-     * 
-     * // Setting an array of items as a key
-     * itemDatabase.set("items_array_0", itemStacks); // max 255 items per array
-     * 
-     * ```
      */
     set(key, value) {
         if (!this.#validNamespace) throw new Error(`§c[Item Database] Invalid name: <${this.#settings.namespace}>. accepted char: a-z 0-9 _`);
@@ -185,16 +163,6 @@ export class QuickItemDatabase {
      * @param {string} key The identifier of the value.
      * @returns {ItemStack | ItemStack[]} The `ItemStack` | `ItemStack[]` saved as `key`
      * @throws Throws if the key doesn't exist.
-     * @Example Example:
-     * ```
-     * // Getting an ItemStack
-     * const itemStack = itemDatabase.get("item0");
-     * 
-     * // Getting an array of items
-     * const itemStacks = itemDatabase.get("items_array_0");
-     * 
-     * 
-     * ```
      */
     get(key) {
         if (!this.#validNamespace) throw new Error(`§c[Item Database] Invalid name: <${this.#settings.namespace}>. accepted char: a-z 0-9 _`);
@@ -215,12 +183,7 @@ export class QuickItemDatabase {
     /**
      * Checks if a key exists in the item database.
      * @param {string} key The identifier of the value.
-     * @returns {boolean}`true` if the key exists, `false` if the key doesn't exist.
-     * @Example Example:
-     * ```
-     * // Checking if a key exists in the database
-     * const boolean = itemDatabase.has("item_0");
-     * ```
+     * @returns {boolean} `true` if the key exists, `false` if the key doesn't exist.
      */
     has(key) {
         if (!this.#validNamespace) throw new Error(`§c[Item Database] Invalid name: <${this.#settings.namespace}>. accepted char: a-z 0-9 _`);
@@ -235,13 +198,6 @@ export class QuickItemDatabase {
      * Deletes a key from the item database.
      * @param {string} key The identifier of the value.
      * @throws Throws if the key doesn't exist.
-     * @Example Example:
-     * ```
-     * // Deleting a key and its value from the database 
-     * itemDatabase.delete("items_array_0");
-     * 
-     * 
-     * ```
      */
     delete(key) {
         if (!this.#validNamespace) throw new Error(`§c[Item Database] Invalid name: <${this.#settings.namespace}>. accepted char: a-z 0-9 _`);
@@ -256,12 +212,6 @@ export class QuickItemDatabase {
     /**
      * Gets all the keys of your namespace from item database.
      * @return {string[]} All the keys as an array of strings.
-     * @Example Example:
-     * ```
-     * const string[] = itemDatabase.keys()
-     * 
-     * 
-     * ```
      */
     keys() {
         if (!this.#validNamespace) throw new Error(`§c[Item Database] Invalid name: <${this.#settings.namespace}>. accepted char: a-z 0-9 _`);
@@ -273,12 +223,6 @@ export class QuickItemDatabase {
     /**
      * Gets all the keys of your namespace from item database (takes some time if values aren't alredy loaded in quickAccess).
      * @return {ItemStack[][]} All the values as an array of ItemStack or ItemStack[].
-     * @Example Example:
-     * ```
-     * const ItemStack[][] = itemDatabase.values()
-     * 
-     * 
-     * ```
      */
     values() {
         if (!this.#validNamespace) throw new Error(`§c[Item Database] Invalid name: <${this.#settings.namespace}>. accepted char: a-z 0-9 _`);
@@ -293,13 +237,7 @@ export class QuickItemDatabase {
         return values;
     }
     /**
-     * Clears all, CAN NOT REWIND.
-     * @Example Example:
-     * ```
-     * itemDatabase.clear()
-     * 
-     * 
-     * ```
+     * Clears all, NOT REVERISBLE.
      */
     clear() {
         if (!this.#validNamespace) throw new Error(`§c[Item Database] Invalid name: <${this.#settings.namespace}>. accepted char: a-z 0-9 _`);
