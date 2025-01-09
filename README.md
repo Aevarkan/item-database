@@ -3,6 +3,10 @@ QIDB is a database for minecraft bedrock's script Api.
 
 This database aims to avoid the use of `JSON.stringify()` for saving `ItemStack` and `ItemStack[]`. It works with `mc structures` by saving the items in `.NBT` format, storing perfect clones of the items in a simple and fast way.
 
+# Contributes
+Thanks to Drag0nD that helped me a lot in the creation of the database and gave me the structure method sending me his infinite chest addon.
+https://youtu.be/Trljwe6zay8?si=Yf1gC0ZsvOyAXXEP
+
 # How to install
 **1)** Extract the folder
 **2)** Copy scripts/QuickItemDatabaseV3.js and paste it in your BP/scripts folder
@@ -11,7 +15,3 @@ This database aims to avoid the use of `JSON.stringify()` for saving `ItemStack`
 ```js
 import {QuickItemDatabase} from './QuickItemDatabaseV3.js'
 ```
-# Contributes
-Thanks to Drag0nD that gave me the idea of structures with his infinite chest addon.
-https://youtu.be/Trljwe6zay8?si=Yf1gC0ZsvOyAXXEP
-
