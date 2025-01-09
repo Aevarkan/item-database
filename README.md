@@ -8,10 +8,10 @@ Thanks to Drag0nD that helped me a lot in the creation of the database and gave 
 https://youtu.be/Trljwe6zay8?si=Yf1gC0ZsvOyAXXEP
 
 # How to install
-**1)** Extract the folder
-**2)** Copy scripts/QuickItemDatabaseV3.js and paste it in your BP/scripts folder
-**3)** Copy entities/storage.json and paste it in your BP/entities
-**4)** Import the database in your script
+**1)** Extract the folder.
+**2)** Copy scripts/QuickItemDatabaseV3.js and paste it in your BP/scripts folder.
+**3)** Copy entities/storage.json and paste it in your BP/entities.
+**4)** Import the database in your script.
 ```js
 import {QuickItemDatabase} from './QuickItemDatabaseV3.js'
 ```
