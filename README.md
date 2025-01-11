@@ -12,6 +12,7 @@ It does not lag since it’s made to do the minimum work possible and it’s loa
 
 It does use background async saving (**BAS**) to avoid tick freezing but maintaining the flow syncronised with QAM. (created in V3.3)
 
+[Visual explaination](https://cdn.discordapp.com/attachments/1252014916496527380/1327710665070350377/Screenshot_2025-01-11_194730.png?ex=67840e6a&is=6782bcea&hm=17e69277be63892303a6ae90e013f80db0db8d036fd42caa4b05f2dd09535d23&)
 # Contributes
 Thanks to Drag0nD that helped me a lot in the creation of the database and gave me the structure method sending me his infinite chest addon.
 https://youtu.be/Trljwe6zay8?si=Yf1gC0ZsvOyAXXEP
