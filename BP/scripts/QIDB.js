@@ -31,17 +31,18 @@ export class QIDB {
         this.#sL;
         const player = world.getPlayers()[0]
         if (!this.#validNamespace) throw new Error(`§c[Item Database] ${namespace} isn't a valid namespace. accepted char: a-z 0-9 _`);
-        if (!sl?.isValid()) {
-            sl = world.scoreboard.addObjective('qidb')
-            sl.setScore('x', player.location.x)
-            sl.setScore('z', player.location.z)
-            this.#sL = { x: sl.getScore('x'), y: 318, z: sl.getScore('z') }
-            this.#dimension.runCommand(`/tickingarea add ${this.#sL.x} 319 ${this.#sL.z} ${this.#sL.x} 318 ${this.#sL.z} storagearea`);
-            console.log(`§q[Item Database] is initialized successfully. namespace: ${this.#settings.namespace}`)
-        } else {
-            this.#sL = { x: sl.getScore('x'), y: 318, z: sl.getScore('z') }
-            console.log(`§q[Item Database] is initialized successfully. namespace: ${this.#settings.namespace}`)
-        }
+            if (!initialSpawn) return;
+            if (sl?.hasParticipant('x') === false || !sl) {
+                if (!sl.isValid()) sl = world.scoreboard.addObjective('qidb');
+                sl.setScore('x', player.location.x)
+                sl.setScore('z', player.location.z)
+                this.#sL = { x: sl.getScore('x'), y: 318, z: sl.getScore('z') }
+                this.#dimension.runCommand(`/tickingarea add ${this.#sL.x} 319 ${this.#sL.z} ${this.#sL.x} 318 ${this.#sL.z} storagearea`);
+                console.log(`§q[Item Database] is initialized successfully. namespace: ${this.#settings.namespace}`)
+            } else {
+                this.#sL = { x: sl.getScore('x'), y: 318, z: sl.getScore('z') }
+                console.log(`§q[Item Database] is initialized successfully. namespace: ${this.#settings.namespace}`)
+            }
         world.afterEvents.playerSpawn.subscribe(({ player, initialSpawn }) => {
             if (!this.#validNamespace) throw new Error(`§c[Item Database] ${namespace} isn't a valid namespace. accepted char: a-z 0-9 _`);
             if (!initialSpawn) return;
