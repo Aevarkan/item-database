@@ -31,7 +31,6 @@ export class QIDB {
         this.#sL;
         const player = world.getPlayers()[0]
         if (!this.#validNamespace) throw new Error(`§c[Item Database] ${namespace} isn't a valid namespace. accepted char: a-z 0-9 _`);
-            if (!initialSpawn) return;
             if (sl?.hasParticipant('x') === false || !sl) {
                 if (!sl.isValid()) sl = world.scoreboard.addObjective('qidb');
                 sl.setScore('x', player.location.x)
