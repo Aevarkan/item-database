@@ -6,7 +6,7 @@ This database aims to avoid the use of `JSON.stringify()` for saving `ItemStack`
 # How does it work?
 This is a database dedicated only for items, it uses structures to store them as nbt data. It uses a simple key: string - value: ItemStack |  ItemStack[] management method, and a namespace to differenciate from other QuickItemDatabases. It has a lot of optimization features: 
 
-Quick-access memory (**QAM**) that works like a ram. (created in V3.2, updated V3.6)
+Quick-access memory (**QAM**), works like a ram, it caches alredy loaded data to prevent performance loss. (created in V3.2, updated V3.6)
 
 It does not lag since it’s made to do the minimum work possible and it’s loading times are 0-2ms
 
