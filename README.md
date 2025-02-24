@@ -26,8 +26,8 @@ https://youtu.be/Trljwe6zay8?si=Yf1gC0ZsvOyAXXEP
 
 **4)** Import the database in your script.
 ```js
-import {QuickItemDatabase} from './QuickItemDatabaseV3.js'
+import {QIDB} from './QIDB.js'
 
-const database = new QuickItemDatabase('my_database') // read the js docs for more specific options
+const database = new QIDB('my_database') // read the js docs for more specific options
 
 ```
