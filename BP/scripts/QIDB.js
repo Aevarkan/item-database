@@ -24,13 +24,13 @@ export class QIDB {
         this.#queuedKeys = []
         this.#queuedValues = []
         this.#quickAccess = new Map()
-        this.#validNamespace = /^[a-z0-9_]*$/.test(this.#settings.namespace)
+        this.#validNamespace = /^[A-Za-z0-9_]*$/.test(this.#settings.namespace)
         this.#dimension = world.getDimension("overworld");
 
         let sl = world.scoreboard.getObjective('qidb')
         this.#sL;
         const player = world.getPlayers()[0]
-        if (!this.#validNamespace) throw new Error(`§c[Item Database] ${namespace} isn't a valid namespace. accepted char: a-z 0-9 _`);
+        if (!this.#validNamespace) throw new Error(`§c[Item Database] ${namespace} isn't a valid namespace. accepted char: A-Z a-z 0-9 _`);
         if (player)
             if (!sl || sl?.hasParticipant('x') === false) {
                 if (!sl) sl = world.scoreboard.addObjective('qidb');
@@ -44,7 +44,7 @@ export class QIDB {
                 console.log(`§q[Item Database] is initialized successfully. namespace: ${this.#settings.namespace}`)
             }
         world.afterEvents.playerSpawn.subscribe(({ player, initialSpawn }) => {
-            if (!this.#validNamespace) throw new Error(`§c[Item Database] ${namespace} isn't a valid namespace. accepted char: a-z 0-9 _`);
+            if (!this.#validNamespace) throw new Error(`§c[Item Database] ${namespace} isn't a valid namespace. accepted char: A-Z a-z 0-9 _`);
             if (!initialSpawn) return;
             if (!sl || sl?.hasParticipant('x') === false) {
                 if (!sl) sl = world.scoreboard.addObjective('qidb');
@@ -54,7 +54,7 @@ export class QIDB {
                 this.#dimension.runCommand(`/tickingarea add ${this.#sL.x} 319 ${this.#sL.z} ${this.#sL.x} 318 ${this.#sL.z} storagearea`);
                 console.log(`§q[Item Database] is initialized successfully. namespace: ${this.#settings.namespace}`)
             } else {
-                try {sl.getScore('x')} catch {console.log(`§c[Item Database] Initialization Error. namespace: ${this.#settings.namespace}`)}
+                try { sl.getScore('x') } catch { console.log(`§c[Item Database] Initialization Error. namespace: ${this.#settings.namespace}`) }
                 this.#sL = { x: sl.getScore('x'), y: 318, z: sl.getScore('z') }
                 console.log(`§q[Item Database] is initialized successfully. namespace: ${this.#settings.namespace}`)
             }
@@ -159,8 +159,8 @@ export class QIDB {
      * @throws Throws if `value` is an array that has more than 255 items.
      */
     set(key, value) {
-        if (!this.#validNamespace) throw new Error(`§c[Item Database] Invalid name: <${this.#settings.namespace}>. accepted char: a-z 0-9 _`);
-        if (!/^[a-z0-9_]*$/.test(key)) throw new Error(`§c[Item Database] Invalid name: <${key}>. accepted char: a-z 0-9 _`);
+        if (!this.#validNamespace) throw new Error(`§c[Item Database] Invalid name: <${this.#settings.namespace}>. accepted char: A-Z a-z 0-9 _`);
+        if (!/^[A-Za-z0-9_]*$/.test(key)) throw new Error(`§c[Item Database] Invalid name: <${key}>. accepted char: A-Z a-z 0-9 _`);
         const time = Date.now();
         key = this.#settings.namespace + ":" + key;
         if (Array.isArray(value)) {
@@ -185,8 +185,8 @@ export class QIDB {
      * @throws Throws if the key doesn't exist.
      */
     get(key) {
-        if (!this.#validNamespace) throw new Error(`§c[Item Database] Invalid name: <${this.#settings.namespace}>. accepted char: a-z 0-9 _`);
-        if (!/^[a-z0-9_]*$/.test(key)) throw new Error(`§c[Item Database] Invalid name: <${key}>. accepted char: a-z 0-9 _`);
+        if (!this.#validNamespace) throw new Error(`§c[Item Database] Invalid name: <${this.#settings.namespace}>. accepted char: A-Z a-z 0-9 _`);
+        if (!/^[A-Za-z0-9_]*$/.test(key)) throw new Error(`§c[Item Database] Invalid name: <${key}>. accepted char: A-Z a-z 0-9 _`);
         const time = Date.now();
         key = this.#settings.namespace + ":" + key;
         if (this.#quickAccess.has(key)) { if (this.#settings.logs) this.#timeWarn(time, key, "got"); return this.#quickAccess.get(key); }
@@ -207,8 +207,8 @@ export class QIDB {
      * @returns {boolean}`true` if the key exists, `false` if the key doesn't exist.
      */
     has(key) {
-        if (!this.#validNamespace) throw new Error(`§c[Item Database] Invalid name: <${this.#settings.namespace}>. accepted char: a-z 0-9 _`);
-        if (!/^[a-z0-9_]*$/.test(key)) throw new Error(`§c[Item Database] Invalid name: <${key}>. accepted char: a-z 0-9 _`);
+        if (!this.#validNamespace) throw new Error(`§c[Item Database] Invalid name: <${this.#settings.namespace}>. accepted char: A-Z a-z 0-9 _`);
+        if (!/^[A-Za-z0-9_]*$/.test(key)) throw new Error(`§c[Item Database] Invalid name: <${key}>. accepted char: A-Z a-z 0-9 _`);
         const time = Date.now();
         key = this.#settings.namespace + ":" + key;
         const exist = this.#quickAccess.has(key) || world.structureManager.get(key)
@@ -221,8 +221,8 @@ export class QIDB {
      * @throws Throws if the key doesn't exist.
      */
     delete(key) {
-        if (!this.#validNamespace) throw new Error(`§c[Item Database] Invalid name: <${this.#settings.namespace}>. accepted char: a-z 0-9 _`);
-        if (!/^[a-z0-9_]*$/.test(key)) throw new Error(`§c[Item Database] Invalid name: <${key}>. accepted char: a-z 0-9 _`);
+        if (!this.#validNamespace) throw new Error(`§c[Item Database] Invalid name: <${this.#settings.namespace}>. accepted char: A-Z a-z 0-9 _`);
+        if (!/^[A-Za-z0-9_]*$/.test(key)) throw new Error(`§c[Item Database] Invalid name: <${key}>. accepted char: A-Z a-z 0-9 _`);
         const time = Date.now();
         key = this.#settings.namespace + ":" + key;
         if (this.#quickAccess.has(key)) this.#quickAccess.delete(key)
@@ -236,7 +236,7 @@ export class QIDB {
      * @return {string[]} All the keys as an array of strings.
      */
     keys() {
-        if (!this.#validNamespace) throw new Error(`§c[Item Database] Invalid name: <${this.#settings.namespace}>. accepted char: a-z 0-9 _`);
+        if (!this.#validNamespace) throw new Error(`§c[Item Database] Invalid name: <${this.#settings.namespace}>. accepted char: A-Z a-z 0-9 _`);
         const allIds = world.getDynamicPropertyIds()
         const ids = []
         allIds.filter(id => id.startsWith(this.#settings.namespace + ":")).forEach(id => ids.push(id.replace(this.#settings.namespace + ":", "")))
@@ -247,7 +247,7 @@ export class QIDB {
      * @return {ItemStack[][]} All the values as an array of ItemStack or ItemStack[].
      */
     values() {
-        if (!this.#validNamespace) throw new Error(`§c[Item Database] Invalid name: <${this.#settings.namespace}>. accepted char: a-z 0-9 _`);
+        if (!this.#validNamespace) throw new Error(`§c[Item Database] Invalid name: <${this.#settings.namespace}>. accepted char: A-Z a-z 0-9 _`);
         const time = Date.now();
         const allIds = world.getDynamicPropertyIds()
         const values = []
@@ -262,7 +262,7 @@ export class QIDB {
      * Clears all, CAN NOT REWIND.
      */
     clear() {
-        if (!this.#validNamespace) throw new Error(`§c[Item Database] Invalid name: <${this.#settings.namespace}>. accepted char: a-z 0-9 _`);
+        if (!this.#validNamespace) throw new Error(`§c[Item Database] Invalid name: <${this.#settings.namespace}>. accepted char: A-Z a-z 0-9 _`);
         const time = Date.now();
         const allIds = world.getDynamicPropertyIds()
         const filtered = allIds.filter(id => id.startsWith(this.#settings.namespace + ":")).map(id => id.replace(this.#settings.namespace + ":", ""))
