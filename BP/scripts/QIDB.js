@@ -1,22 +1,22 @@
 import { world, system, ItemStack, Player } from '@minecraft/server';
-/**
- * @Class Quick Item Database V3.8-Stable by Carchi77
- * @Contributors Drag0nD - Coptaine
- * @ Made to fix script api's missing method to save items as object.
- * @ Optimized for low end devices while keeping fast loading times.
- * @ Does NOT impact ingame performance.
- * @ Uses entities inventory and structures.
- * @ Zero data loss: items are saved as a perfect clone.
-**/
+
+// About the project
+
+// QIDB - QUICK ITEM DATABASE
+// GitHub:          https://github.com/Carchi777/QUICK-ITEM-DATABASE
+// Discord:         https://discord.com/channels/523663022053392405/1252014916496527380
+
+// Made by Carchi77
+// My Github:       https://github.com/Carchi777
+// My Discord:      https://discordapp.com/users/985593016867778590
+
 export class QIDB {
     /**
      * @param {string} namespace The unique namespace for the database keys.
-     * @param {number} saveRate The rate of background saves per Tick (50ms), 1 is the recomended value for normal usage, you can use an higher rate if you need to save more than 1 key per tick (performance will be affected).
      * @param {boolean} logs If set to true, the database will log script latency in ms.
-     * @param {number} QAMsize Quick Access Memory Size, the max amount of keys to keep quickly accessible. A small size can couse lag on frequent iterated usage, a large number can cause high hardware RAM usage.
+     * @param {number} cacheSize Quick the max amount of keys to keep quickly accessible. A small size can couse lag on frequent iterated usage, a large number can cause high hardware RAM usage.
      */
-    constructor(namespace = "", saveRate = 2, QAMsize = 100, logs = false) {
-        this.#saveRate = saveRate
+    constructor(namespace = "", cacheSize = 100, logs = false) {
         this.#settings = {
             logs: logs || false,
             namespace: namespace
@@ -59,36 +59,47 @@ export class QIDB {
                 console.log(`§q[Item Database] is initialized successfully. namespace: ${this.#settings.namespace}`)
             }
         })
-
         let show = true
         let runId
-        system.runInterval(() => {
-            const diff = this.#quickAccess.size - QAMsize;
-            if (diff > 0) {
-                for (let i = 0; i < diff; i++) {
-                    this.#quickAccess.delete(this.#quickAccess.keys().next().value);
+        const self = this
+        let lastam
+        system.runJob((function* gvwesa() {
+            while (true) {
+                const diff = self.#quickAccess.size - cacheSize;
+                if (diff > 0) {
+                    for (let i = 0; i < diff; i++) {
+                        self.#quickAccess.delete(self.#quickAccess.keys().next()?.value);
+                    }
                 }
+                if (self.#queuedKeys.length) {
 
-            }
-            if (this.#queuedKeys.length) {
-                show == true && console.log("§eSaving, Dont close the world.")
+                    if (!runId) {
+                        function log() {
+                            const abc = (-(self.#queuedKeys.length - lastam) / 6).toFixed(0) || '//'
+                            console.log(`§eSaving, Dont close the world.\n§r[Stats]-§eRemaining: ${self.#queuedKeys.length} keys | speed: ${abc} keys/s`)
+                            lastam = self.#queuedKeys.length
+                        }
+                        log()
+                        runId = system.runInterval(() => {
+                            log()
+                        }, 120)
+                    }
+                    show = false
+                    const start = Date.now()
+                    if (self.#queuedKeys.length) {
+                        self.#romSave(self.#queuedKeys[0], self.#queuedValues[0]); if (logs) self.#timeWarn(start, self.#queuedKeys[0], "saved"); self.#queuedKeys.shift(); self.#queuedValues.shift()
+                    }
+                    yield;
+                } else if (runId) {
+                    system.clearRun(runId)
+                    runId = undefined
+                    show == false && console.log("§aSaved, You can now close the world safely.")
+                    show = true
 
-                if (!runId) runId = system.runInterval(() => {
-                    console.log("§eSaving, Dont close the world.")
-                }, 120)
-                show = false
-                const start = Date.now()
-                const k = Math.min(this.#saveRate, this.#queuedKeys.length)
-                for (let i = 0; i < k; i++) {
-                    this.#romSave(this.#queuedKeys[0], this.#queuedValues[0]); if (logs) this.#timeWarn(start, this.#queuedKeys[0], "saved"); this.#queuedKeys.shift(); this.#queuedValues.shift()
                 }
-            } else if (runId) {
-                system.clearRun(runId)
-                runId = undefined
-                show == false && console.log("§aSaved, You can now close the world safely.")
-                show = true
+                yield;
             }
-        })
+        })())
         world.beforeEvents.playerLeave.subscribe(() => {
             if (this.#queuedKeys.length && world.getPlayers().length < 2) {
                 console.error(
@@ -99,7 +110,6 @@ export class QIDB {
             }
         })
     }
-    #saveRate;
     #validNamespace;
     #queuedKeys;
     #settings;
@@ -142,12 +152,10 @@ export class QIDB {
         const { canStr, inv } = this.#load(key);
         if (!value) for (let i = 0; i < 256; i++) inv.setItem(i, undefined), world.setDynamicProperty(key, null);
         if (Array.isArray(value)) {
-            try { for (let i = 0; i < 256; i++) inv.setItem(i, value[i] || undefined) } catch
-            { throw new Error(`§c[Item Database] Invalid value type. supported: ItemStack | ItemStack[] | undefined`) }
+            try { for (let i = 0; i < 256; i++) inv.setItem(i, value[i] || undefined) } catch { throw new Error(`§c[Item Database] Invalid value type. supported: ItemStack | ItemStack[] | undefined`) }
             world.setDynamicProperty(key, true)
         } else {
-            try { inv.setItem(0, value), world.setDynamicProperty(key, false) } catch
-            { throw new Error(`§c[Item Database] Invalid value type. supported: ItemStack | ItemStack[] | undefined`) }
+            try { inv.setItem(0, value), world.setDynamicProperty(key, false) } catch { throw new Error(`§c[Item Database] Invalid value type. supported: ItemStack | ItemStack[] | undefined`) }
         }
         this.#save(key, canStr);
     }
