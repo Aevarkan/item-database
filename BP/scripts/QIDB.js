@@ -10,119 +10,128 @@ import { world, system, ItemStack, Player } from '@minecraft/server';
 // My Github:       https://github.com/Carchi777
 // My Discord:      https://discordapp.com/users/985593016867778590
 
-export class QIDB {
 
-    // starts
+function date() {
+    const date = new Date(Date.now())
+    const ms = date.getMilliseconds().toString().padStart(3, "0")
+    return `${date.toLocaleString().replace(' AM', `.${ms} AM`).replace(' PM', `.${ms} PM`)}`
+}
+export class QIDB {
     logs;
     /**
-         * @param {string} namespace The unique namespace for the database keys.
-         * @param {number} cacheSize Quick the max amount of keys to keep quickly accessible. A small size can couse lag on frequent iterated usage, a large number can cause high hardware RAM usage.
-         * @param {number} saveRate the background saves per tick, (high performance impact) saveRate1 is 20 keys per second
-         */
+     * @param {string} namespace The unique namespace for the database keys.
+     * @param {number} cacheSize Quick the max amount of keys to keep quickly accessible. A small size can couse lag on frequent iterated usage, a large number can cause high hardware RAM usage.
+     * @param {number} saveRate the background saves per tick, (high performance impact) saveRate1 is 20 keys per second
+     */
     constructor(namespace = "", cacheSize = 100, saveRate = 1) {
-        this.#settings = {
-            namespace: namespace
-        };
-        this.#queuedKeys = []
-        this.#queuedValues = []
-        this.#quickAccess = new Map()
-        this.#validNamespace = /^[A-Za-z0-9_]*$/.test(this.#settings.namespace)
-        this.#dimension = world.getDimension("overworld");
-        this.logs = {
-            startUp: true,
-            save: false,
-            load: false,
-            set: false,
-            get: false,
-            has: false,
-            delete: false,
-            clear: false,
-            values: false,
-            keys: false,
-        }
-        let sl = world.scoreboard.getObjective('qidb')
-        this.#sL;
-        const player = world.getPlayers()[0]
-        if (!this.#validNamespace) throw new Error(`§cQIDB > ${namespace} isn't a valid namespace. accepted char: A-Z a-z 0-9 _`);
-        if (player)
-            if (!sl || sl?.hasParticipant('x') === false) {
-                if (!sl) sl = world.scoreboard.addObjective('qidb');
-                sl.setScore('x', player.location.x)
-                sl.setScore('z', player.location.z)
-                this.#sL = { x: sl.getScore('x'), y: 318, z: sl.getScore('z') }
-                this.#dimension.runCommand(`/tickingarea add ${this.#sL.x} 319 ${this.#sL.z} ${this.#sL.x} 318 ${this.#sL.z} storagearea`);
-                this.logs.startUp == true && console.log(`§qQIDB > is initialized successfully. namespace: ${this.#settings.namespace}`)
-            } else {
-                this.#sL = { x: sl.getScore('x'), y: 318, z: sl.getScore('z') }
-                this.logs.startUp == true && console.log(`§qQIDB > is initialized successfully. namespace: ${this.#settings.namespace}`)
+        system.run(() => {
+            const self = this
+            this.#settings = {
+                namespace: namespace
+            };
+            this.#queuedKeys = []
+            this.#queuedValues = []
+            this.#quickAccess = new Map()
+            this.#validNamespace = /^[A-Za-z0-9_]*$/.test(this.#settings.namespace)
+            this.#dimension = world.getDimension("overworld");
+            this.logs = {
+                startUp: true,
+                save: true,
+                load: true,
+                set: true,
+                get: true,
+                has: true,
+                delete: true,
+                clear: true,
+                values: true,
+                keys: true,
             }
-        world.afterEvents.playerSpawn.subscribe(({ player, initialSpawn }) => {
-            if (!this.#validNamespace) throw new Error(`§cQIDB > ${namespace} isn't a valid namespace. accepted char: A-Z a-z 0-9 _`);
-            if (!initialSpawn) return;
-            if (!sl || sl?.hasParticipant('x') === false) {
-                if (!sl) sl = world.scoreboard.addObjective('qidb');
-                sl.setScore('x', player.location.x)
-                sl.setScore('z', player.location.z)
-                this.#sL = { x: sl.getScore('x'), y: 318, z: sl.getScore('z') }
-                this.#dimension.runCommand(`/tickingarea add ${this.#sL.x} 319 ${this.#sL.z} ${this.#sL.x} 318 ${this.#sL.z} storagearea`);
-                this.logs.startUp == true && console.log(`§qQIDB > is initialized successfully. namespace: ${this.#settings.namespace}`)
-            } else {
-                try { sl.getScore('x') } catch { console.log(`§cQIDB > Initialization Error. namespace: ${this.#settings.namespace}`) }
-                this.#sL = { x: sl.getScore('x'), y: 318, z: sl.getScore('z') }
-                this.logs.startUp == true && console.log(`§qQIDB > is initialized successfully. namespace: ${this.#settings.namespace}`)
+            function startLog() {
+                console.log(
+                    `§qQIDB > is initialized successfully.§r namespace: ${self.#settings.namespace} §r${date()} `
+                );
             }
-        })
-        // save
-        let show = true
-        let runId
-        const self = this
-        let lastam
-        system.runInterval(() => {
-            const diff = self.#quickAccess.size - cacheSize;
-            if (diff > 0) {
-                for (let i = 0; i < diff; i++) {
-                    self.#quickAccess.delete(self.#quickAccess.keys().next()?.value);
+            const VALID_NAMESPACE_ERROR = new Error(`§cQIDB > ${namespace} isn't a valid namespace. accepted char: A-Z a-z 0-9 _ §r${date()}`)
+            let sl = world.scoreboard.getObjective('qidb')
+            this.#sL;
+            const player = world.getPlayers()[0]
+            if (!this.#validNamespace) throw VALID_NAMESPACE_ERROR;
+            if (player)
+                if (!sl || sl?.hasParticipant('x') === false) {
+                    if (!sl) sl = world.scoreboard.addObjective('qidb');
+                    sl.setScore('x', player.location.x)
+                    sl.setScore('z', player.location.z)
+                    this.#sL = { x: sl.getScore('x'), y: 318, z: sl.getScore('z') }
+                    this.#dimension.runCommand(`/tickingarea add ${this.#sL.x} 319 ${this.#sL.z} ${this.#sL.x} 318 ${this.#sL.z} storagearea`);
+                    startLog()
+                } else {
+                    this.#sL = { x: sl.getScore('x'), y: 318, z: sl.getScore('z') }
+                    startLog()
                 }
-            }
-            if (self.#queuedKeys.length) {
+            world.afterEvents.playerSpawn.subscribe(({ player, initialSpawn }) => {
+                if (!this.#validNamespace) throw VALID_NAMESPACE_ERROR;
+                if (!initialSpawn) return;
+                if (!sl || sl?.hasParticipant('x') === false) {
+                    if (!sl) sl = world.scoreboard.addObjective('qidb');
+                    sl.setScore('x', player.location.x)
+                    sl.setScore('z', player.location.z)
+                    this.#sL = { x: sl.getScore('x'), y: 318, z: sl.getScore('z') }
+                    this.#dimension.runCommand(`/tickingarea add ${this.#sL.x} 319 ${this.#sL.z} ${this.#sL.x} 318 ${this.#sL.z} storagearea`);
+                    startLog()
+                } else {
+                    this.#sL = { x: sl.getScore('x'), y: 318, z: sl.getScore('z') }
+                    startLog()
+                }
+            })
+            let show = true
+            let runId
+            let lastam
+            system.runInterval(() => {
+                const diff = self.#quickAccess.size - cacheSize;
+                if (diff > 0) {
+                    for (let i = 0; i < diff; i++) {
+                        self.#quickAccess.delete(self.#quickAccess.keys().next()?.value);
+                    }
+                }
+                if (self.#queuedKeys.length) {
 
-                if (!runId) {
+                    if (!runId) {
 
-                    log()
-                    runId = system.runInterval(() => {
                         log()
-                    }, 120)
-                }
-                show = false
-                const start = Date.now()
-                const k = Math.min(saveRate, this.#queuedKeys.length)
-                for (let i = 0; i < k; i++) {
-                    this.#romSave(this.#queuedKeys[0], this.#queuedValues[0]);
-                    // log here
-                    this.#queuedKeys.shift();
-                    this.#queuedValues.shift()
-                }
-            } else if (runId) {
-                system.clearRun(runId)
-                runId = undefined
-                show == false && this.logs.save == true && console.log("§aQIDB >Saved, You can now close the world safely.")
-                show = true
-                return
-            } else return
-        }, 1)
-        function log() {
-            const abc = (-(self.#queuedKeys.length - lastam) / 6).toFixed(0) || '//'
-            self.logs.save == true && console.log(`§eQIDB > Saving, Dont close the world.\n§r[Stats]-§eRemaining: ${self.#queuedKeys.length} keys | speed: ${abc} keys/s`)
-            lastam = self.#queuedKeys.length
-        }
-        world.beforeEvents.playerLeave.subscribe(() => {
-            if (this.#queuedKeys.length && world.getPlayers().length < 2) {
-                console.error(
-                    `\n\n\n\n§cQIDB > Fatal Error > World closed too early, items not saved correctly. \n\n` +
-                    `Namespace: ${this.#settings.namespace}\n` +
-                    `Lost Keys amount: ${this.#queuedKeys.length}\n\n\n\n`
-                )
+                        runId = system.runInterval(() => {
+                            log()
+                        }, 120)
+                    }
+                    show = false
+                    const k = Math.min(saveRate, this.#queuedKeys.length)
+                    for (let i = 0; i < k; i++) {
+                        this.#romSave(this.#queuedKeys[0], this.#queuedValues[0]);
+                        // log here
+                        this.#queuedKeys.shift();
+                        this.#queuedValues.shift()
+                    }
+                } else if (runId) {
+                    system.clearRun(runId)
+                    runId = undefined
+                    show == false && this.logs.save == true && console.log(`§aQIDB >Saved, You can now close the world safely. §r${date()}`)
+                    show = true
+                    return
+                } else return
+            }, 1)
+            function log() {
+                const abc = (-(self.#queuedKeys.length - lastam) / 6).toFixed(0) || '//'
+                self.logs.save == true && console.log(`§eQIDB > Saving, Dont close the world.\n§r[Stats]-§eRemaining: ${self.#queuedKeys.length} keys | speed: ${abc} keys/s §r${date()}`)
+                lastam = self.#queuedKeys.length
             }
+            world.beforeEvents.playerLeave.subscribe(() => {
+                if (this.#queuedKeys.length && world.getPlayers().length < 2) {
+                    console.error(
+                        `\n\n\n\n§cQIDB > Fatal Error > World closed too early, items not saved correctly.  \n\n` +
+                        `Namespace: ${this.#settings.namespace}\n` +
+                        `Lost Keys amount: ${this.#queuedKeys.length} §r${date()}\n\n\n\n`
+                    )
+                }
+            })
         })
     }
     #validNamespace;
@@ -133,7 +142,7 @@ export class QIDB {
     #dimension;
     #sL;
     #load(key) {
-        if (key.length > 30) throw new Error(`§cQIDB > Out of range: <${key}> has more than 30 characters`)
+        if (key.length > 30) throw new Error(`§cQIDB > Out of range: <${key}> has more than 30 characters §r${date()}`)
         let canStr = false;
         try {
             world.structureManager.place(key, this.#dimension, this.#sL, { includeEntities: true });
@@ -145,7 +154,7 @@ export class QIDB {
         if (entities.length > 1) entities.forEach((e, index) => entities[index + 1]?.remove());
         const entity = entities[0];
         const inv = entity.getComponent("inventory").container;
-        this.logs.load == true && console.log(`§aQIDB > Loaded entity <${key}>`)
+        this.logs.load == true && console.log(`§aQIDB > Loaded entity <${key}> §r${date()}`)
         return { canStr, inv };
     }
     async #save(key, canStr) {
@@ -163,10 +172,10 @@ export class QIDB {
         const { canStr, inv } = this.#load(key);
         if (!value) for (let i = 0; i < 256; i++) inv.setItem(i, undefined), world.setDynamicProperty(key, null);
         if (Array.isArray(value)) {
-            try { for (let i = 0; i < 256; i++) inv.setItem(i, value[i] || undefined) } catch { throw new Error(`§cQIDB > Invalid value type. supported: ItemStack | ItemStack[] | undefined`) }
+            try { for (let i = 0; i < 256; i++) inv.setItem(i, value[i] || undefined) } catch { throw new Error(`§cQIDB > Invalid value type. supported: ItemStack | ItemStack[] | undefined §r${date()}`) }
             world.setDynamicProperty(key, true)
         } else {
-            try { inv.setItem(0, value), world.setDynamicProperty(key, false) } catch { throw new Error(`§cQIDB > Invalid value type. supported: ItemStack | ItemStack[] | undefined`) }
+            try { inv.setItem(0, value), world.setDynamicProperty(key, false) } catch { throw new Error(`§cQIDB > Invalid value type. supported: ItemStack | ItemStack[] | undefined §r${date()}`) }
         }
         this.#save(key, canStr);
     }
@@ -178,12 +187,12 @@ export class QIDB {
      * @throws Throws if `value` is an array that has more than 255 items.
      */
     set(key, value) {
-        if (!this.#validNamespace) throw new Error(`§cQIDB > Invalid name: <${this.#settings.namespace}>. accepted char: A-Z a-z 0-9 _`);
-        if (!/^[A-Za-z0-9_]*$/.test(key)) throw new Error(`§cQIDB > Invalid name: <${key}>. accepted char: A-Z a-z 0-9 _`);
+        if (!this.#validNamespace) throw new Error(`§cQIDB > Invalid name: <${this.#settings.namespace}>. accepted char: A-Z a-z 0-9 _ §r${date()}`);
+        if (!/^[A-Za-z0-9_]*$/.test(key)) throw new Error(`§cQIDB > Invalid name: <${key}>. accepted char: A-Z a-z 0-9 _ §r${date()}`);
         const time = Date.now();
         key = this.#settings.namespace + ":" + key;
         if (Array.isArray(value)) {
-            if (value.length > 255) throw new Error(`§cQIDB > Out of range: <${key}> has more than 255 ItemStacks`)
+            if (value.length > 255) throw new Error(`§cQIDB > Out of range: <${key}> has more than 255 ItemStacks §r${date()}`)
             world.setDynamicProperty(key, true)
         } else {
             world.setDynamicProperty(key, false)
@@ -195,7 +204,7 @@ export class QIDB {
             this.#queuedKeys.splice(i, 1)
         }
         this.#queueSaving(key, value)
-        this.logs.set == true && console.log(`§aQIDB > Set key <${key}> succesfully. ${Date.now() - time}ms`)
+        this.logs.set == true && console.log(`§aQIDB > Set key <${key}> succesfully. ${Date.now() - time}ms §r${date()}`)
 
     }
     /**
@@ -205,12 +214,12 @@ export class QIDB {
      * @throws Throws if the key doesn't exist.
      */
     get(key) {
-        if (!this.#validNamespace) throw new Error(`§cQIDB > Invalid name: <${this.#settings.namespace}>. accepted char: A-Z a-z 0-9 _`);
-        if (!/^[A-Za-z0-9_]*$/.test(key)) throw new Error(`§cQIDB > Invalid name: <${key}>. accepted char: A-Z a-z 0-9 _`);
+        if (!this.#validNamespace) throw new Error(`§cQIDB > Invalid name: <${this.#settings.namespace}>. accepted char: A-Z a-z 0-9 _ §r${date()}`);
+        if (!/^[A-Za-z0-9_]*$/.test(key)) throw new Error(`§cQIDB > Invalid name: <${key}>. accepted char: A-Z a-z 0-9 _ §r${date()}`);
         const time = Date.now();
         key = this.#settings.namespace + ":" + key;
         if (this.#quickAccess.has(key)) {
-            this.logs.get == true && console.log(`§aQIDB > Got key <${key}> succesfully. ${Date.now() - time}ms`)
+            this.logs.get == true && console.log(`§aQIDB > Got key <${key}> succesfully. ${Date.now() - time}ms §r${date()}`)
             return this.#quickAccess.get(key);
         }
         const structure = world.structureManager.get(key)
@@ -220,7 +229,7 @@ export class QIDB {
         for (let i = 0; i < 256; i++) items.push(inv.getItem(i));
         for (let i = 255; i >= 0; i--) if (!items[i]) items.pop(); else break;
         this.#save(key, canStr);
-        this.logs.get == true && console.log(`§aQIDB > Got items from <${key}> succesfully. ${Date.now() - time}ms`)
+        this.logs.get == true && console.log(`§aQIDB > Got items from <${key}> succesfully. ${Date.now() - time}ms §r${date()}`)
 
         if (world.getDynamicProperty(key)) { this.#quickAccess.set(key, items); return items }
         else { this.#quickAccess.set(key, items[0]); return items[0]; }
@@ -231,12 +240,12 @@ export class QIDB {
      * @returns {boolean}`true` if the key exists, `false` if the key doesn't exist.
      */
     has(key) {
-        if (!this.#validNamespace) throw new Error(`§cQIDB > Invalid name: <${this.#settings.namespace}>. accepted char: A-Z a-z 0-9 _`);
-        if (!/^[A-Za-z0-9_]*$/.test(key)) throw new Error(`§cQIDB > Invalid name: <${key}>. accepted char: A-Z a-z 0-9 _`);
+        if (!this.#validNamespace) throw new Error(`§cQIDB > Invalid name: <${this.#settings.namespace}>. accepted char: A-Z a-z 0-9 _ §r${date()}`);
+        if (!/^[A-Za-z0-9_]*$/.test(key)) throw new Error(`§cQIDB > Invalid name: <${key}>. accepted char: A-Z a-z 0-9 _ §r${date()}`);
         const time = Date.now();
         key = this.#settings.namespace + ":" + key;
         const exist = this.#quickAccess.has(key) || world.structureManager.get(key)
-        this.logs.has == true && console.log(`§aQIDB > Found key <${key}> succesfully. ${Date.now() - time}ms`)
+        this.logs.has == true && console.log(`§aQIDB > Found key <${key}> succesfully. ${Date.now() - time}ms §r${date()}`)
 
 
         if (exist) return true; else return false
@@ -247,26 +256,26 @@ export class QIDB {
                     * @throws Throws if the key doesn't exist.
                     */
     delete(key) {
-        if (!this.#validNamespace) throw new Error(`§cQIDB > Invalid name: <${this.#settings.namespace}>. accepted char: A-Z a-z 0-9 _`);
-        if (!/^[A-Za-z0-9_]*$/.test(key)) throw new Error(`§cQIDB > Invalid name: <${key}>. accepted char: A-Z a-z 0-9 _`);
+        if (!this.#validNamespace) throw new Error(`§cQIDB > Invalid name: <${this.#settings.namespace}>. accepted char: A-Z a-z 0-9 _ §r${date()}`);
+        if (!/^[A-Za-z0-9_]*$/.test(key)) throw new Error(`§cQIDB > Invalid name: <${key}>. accepted char: A-Z a-z 0-9 _ §r${date()}`);
         const time = Date.now();
         key = this.#settings.namespace + ":" + key;
         if (this.#quickAccess.has(key)) this.#quickAccess.delete(key)
         const structure = world.structureManager.get(key)
         if (structure) world.structureManager.delete(key), world.setDynamicProperty(key, null);
-        else throw new Error(`§cQIDB > The key <${key}> doesn't exist.`);
-        this.logs.delete == true && console.log(`§aQIDB > Deleted key <${key}> succesfully. ${Date.now() - time}ms`)
+        else throw new Error(`§cQIDB > The key <${key}> doesn't exist. §r${date()}`);
+        this.logs.delete == true && console.log(`§aQIDB > Deleted key <${key}> succesfully. ${Date.now() - time}ms §r${date()}`)
     }
     /**
      * Gets all the keys of your namespace from item database.
      * @return {string[]} All the keys as an array of strings.
                         */
     keys() {
-        if (!this.#validNamespace) throw new Error(`§cQIDB > Invalid name: <${this.#settings.namespace}>. accepted char: A-Z a-z 0-9 _`);
+        if (!this.#validNamespace) throw new Error(`§cQIDB > Invalid name: <${this.#settings.namespace}>. accepted char: A-Z a-z 0-9 _ §r${date()}`);
         const allIds = world.getDynamicPropertyIds()
         const ids = []
         allIds.filter(id => id.startsWith(this.#settings.namespace + ":")).forEach(id => ids.push(id.replace(this.#settings.namespace + ":", "")))
-        this.logs.keys == true && console.log(`§aQIDB > Got the list of all the ${ids.length} keys.`)
+        this.logs.keys == true && console.log(`§aQIDB > Got the list of all the ${ids.length} keys. §r${date()}`)
 
         return ids;
     }
@@ -275,7 +284,7 @@ export class QIDB {
      * @return {ItemStack[][]} All the values as an array of ItemStack or ItemStack[].
                             */
     values() {
-        if (!this.#validNamespace) throw new Error(`§cQIDB > Invalid name: <${this.#settings.namespace}>. accepted char: A-Z a-z 0-9 _`);
+        if (!this.#validNamespace) throw new Error(`§cQIDB > Invalid name: <${this.#settings.namespace}>. accepted char: A-Z a-z 0-9 _ §r${date()}`);
         const time = Date.now();
         const allIds = world.getDynamicPropertyIds()
         const values = []
@@ -283,7 +292,7 @@ export class QIDB {
         for (const key of filtered) {
             values.push(this.get(key));
         }
-        this.logs.values == true && console.log(`§aQIDB > Got the list of all the ${values.length} values. ${Date.now() - time}ms`)
+        this.logs.values == true && console.log(`§aQIDB > Got the list of all the ${values.length} values. ${Date.now() - time}ms §r${date()}`)
 
         return values;
     }
@@ -291,14 +300,14 @@ export class QIDB {
      * Clears all, CAN NOT REWIND.
      */
     clear() {
-        if (!this.#validNamespace) throw new Error(`§cQIDB > Invalid name: <${this.#settings.namespace}>. accepted char: A-Z a-z 0-9 _`);
+        if (!this.#validNamespace) throw new Error(`§cQIDB > Invalid name: <${this.#settings.namespace}>. accepted char: A-Z a-z 0-9 _ §r${date()}`);
         const time = Date.now();
         const allIds = world.getDynamicPropertyIds()
         const filtered = allIds.filter(id => id.startsWith(this.#settings.namespace + ":")).map(id => id.replace(this.#settings.namespace + ":", ""))
         for (const key of filtered) {
             this.delete(key)
         }
-        this.logs.clear == true && console.log(`§aQIDB > Cleared, deleted ${filtered.length} values. ${Date.now() - time}ms`)
+        this.logs.clear == true && console.log(`§aQIDB > Cleared, deleted ${filtered.length} values. ${Date.now() - time}ms §r${date()}`)
 
     }
 }
