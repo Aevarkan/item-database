@@ -3,7 +3,7 @@ import { world, system, ItemStack, Player } from '@minecraft/server';
 import { QIDB } from './QIDB.js' // new name of the file (shorter)
 
 // initalize database using 270 slots for quick access and 10 inventories saves per tick
-const Inventories = new QIDB('inventories', 10, 270, true) // logs are optional
+const Inventories = new QIDB('inventories', 10, 270) // logs are optional
 
 
 // using chatsend to simulate a command
