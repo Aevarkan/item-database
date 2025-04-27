@@ -1,4 +1,4 @@
-import { world, system, ItemStack, Player } from '@minecraft/server';
+import { world, system, ItemStack, Player, Entity } from '@minecraft/server';
 
 // About the project
 
@@ -17,13 +17,12 @@ function date() {
     return `${date.toLocaleString().replace(' AM', `.${ms} AM`).replace(' PM', `.${ms} PM`)}`
 }
 export class QIDB {
-    logs;
     /**
      * @param {string} namespace The unique namespace for the database keys.
      * @param {number} cacheSize Quick the max amount of keys to keep quickly accessible. A small size can couse lag on frequent iterated usage, a large number can cause high hardware RAM usage.
      * @param {number} saveRate the background saves per tick, (high performance impact) saveRate1 is 20 keys per second
      */
-    constructor(namespace = "", cacheSize = 100, saveRate = 1) {
+    constructor(namespace = "", cacheSize = 50, saveRate = 1) {
         system.run(() => {
             const self = this
             this.#settings = {
@@ -34,22 +33,25 @@ export class QIDB {
             this.#quickAccess = new Map()
             this.#validNamespace = /^[A-Za-z0-9_]*$/.test(this.#settings.namespace)
             this.#dimension = world.getDimension("overworld");
-            this.logs = {
-                startUp: true,
-                save: true,
-                load: true,
-                set: true,
-                get: true,
-                has: true,
-                delete: true,
-                clear: true,
-                values: true,
-                keys: true,
-            }
+            this.logs
             function startLog() {
                 console.log(
                     `§qQIDB > is initialized successfully.§r namespace: ${self.#settings.namespace} §r${date()} `
                 );
+
+                if (saveRate > 1) {
+                    console.warn(
+                        `§c§lWARNING! \n§r§cQIDB > using a saveRate bigger than 1 can cause slower game ticks and extreme lag while saving 1024 size keys. at <${self.#settings.namespace}> §r${date()} `
+                    );
+                    world.getPlayers().forEach(player => {
+                        if (player.isOp) {
+                            player.sendMessage(
+                                `§c§lWARNING! \n§r§cQIDB > using a saveRate bigger than 1 can cause slower game ticks and extreme lag while saving 1024 size keys. at <${self.#settings.namespace}> §r${date()} `
+                            )
+                        }
+                    })
+                }
+
             }
             const VALID_NAMESPACE_ERROR = new Error(`§cQIDB > ${namespace} isn't a valid namespace. accepted char: A-Z a-z 0-9 _ §r${date()}`)
             let sl = world.scoreboard.getObjective('qidb')
@@ -106,7 +108,6 @@ export class QIDB {
                     const k = Math.min(saveRate, this.#queuedKeys.length)
                     for (let i = 0; i < k; i++) {
                         this.#romSave(this.#queuedKeys[0], this.#queuedValues[0]);
-                        // log here
                         this.#queuedKeys.shift();
                         this.#queuedValues.shift()
                     }
@@ -123,10 +124,10 @@ export class QIDB {
                 self.logs.save == true && console.log(`§eQIDB > Saving, Dont close the world.\n§r[Stats]-§eRemaining: ${self.#queuedKeys.length} keys | speed: ${abc} keys/s §r${date()}`)
                 lastam = self.#queuedKeys.length
             }
-            world.beforeEvents.playerLeave.subscribe(() => {
-                if (this.#queuedKeys.length && world.getPlayers().length < 2) {
+            system.beforeEvents.shutdown.subscribe(() => {
+                if (this.#queuedKeys.length) {
                     console.error(
-                        `\n\n\n\n§cQIDB > Fatal Error > World closed too early, items not saved correctly.  \n\n` +
+                        `\n\n\n\n§c§lQIDB > Fatal Error >§r§c World closed too early, items not saved correctly.  \n\n` +
                         `Namespace: ${this.#settings.namespace}\n` +
                         `Lost Keys amount: ${this.#queuedKeys.length} §r${date()}\n\n\n\n`
                     )
@@ -134,6 +135,18 @@ export class QIDB {
             })
         })
     }
+    logs = {
+        startUp: true,
+        save: true,
+        load: true,
+        set: true,
+        get: true,
+        has: true,
+        delete: true,
+        clear: true,
+        values: true,
+        keys: true,
+    };
     #validNamespace;
     #queuedKeys;
     #settings;
@@ -141,21 +154,40 @@ export class QIDB {
     #queuedValues;
     #dimension;
     #sL;
-    #load(key) {
+    #load(key, length) {
         if (key.length > 30) throw new Error(`§cQIDB > Out of range: <${key}> has more than 30 characters §r${date()}`)
         let canStr = false;
         try {
             world.structureManager.place(key, this.#dimension, this.#sL, { includeEntities: true });
             canStr = true;
+
         } catch {
-            this.#dimension.spawnEntity("qidb:storage", this.#sL);
+            console.log(length)
+            for (let i = 0; i < length; i++)
+                this.#dimension.spawnEntity("qidb:storage", this.#sL);
         }
+        /**@type {Entity[]} */
         const entities = this.#dimension.getEntities({ location: this.#sL, type: "qidb:storage" });
-        if (entities.length > 1) entities.forEach((e, index) => entities[index + 1]?.remove());
-        const entity = entities[0];
-        const inv = entity.getComponent("inventory").container;
-        this.logs.load == true && console.log(`§aQIDB > Loaded entity <${key}> §r${date()}`)
-        return { canStr, inv };
+        /**@type {Container[]} */
+        if (entities.length < length) {
+            for (let i = entities.length; i < length; i++)
+                entities.push(this.#dimension.spawnEntity("qidb:storage", this.#sL))
+        }
+        if (entities.length > length) {
+            console.log('entities.length > length: ', entities.length, '>', length, entities.length > length)
+            for (let i = entities.length; i > length; i--) {
+                console.log('removed', i)
+                entities[i - 1].remove()
+                entities.pop()
+            }
+        }
+        const invs = []
+        entities.forEach(entity => {
+            invs.push(entity.getComponent("inventory").container)
+        })
+
+        this.logs.load == true && console.log(`§aQIDB > Loaded ${entities.length} entities <${key}> §r${date()}`)
+        return { canStr, invs };
     }
     async #save(key, canStr) {
         if (canStr) world.structureManager.delete(key);
@@ -169,14 +201,16 @@ export class QIDB {
         this.#queuedValues.push(value)
     }
     async #romSave(key, value) {
-        const { canStr, inv } = this.#load(key);
-        if (!value) for (let i = 0; i < 256; i++) inv.setItem(i, undefined), world.setDynamicProperty(key, null);
-        if (Array.isArray(value)) {
-            try { for (let i = 0; i < 256; i++) inv.setItem(i, value[i] || undefined) } catch { throw new Error(`§cQIDB > Invalid value type. supported: ItemStack | ItemStack[] | undefined §r${date()}`) }
-            world.setDynamicProperty(key, true)
-        } else {
-            try { inv.setItem(0, value), world.setDynamicProperty(key, false) } catch { throw new Error(`§cQIDB > Invalid value type. supported: ItemStack | ItemStack[] | undefined §r${date()}`) }
-        }
+        const { canStr, invs } = this.#load(key, (Math.floor((value?.length - 1) / 256) + 1) || 1);
+        invs.forEach((inv, index) => {
+            if (!value) for (let i = 256 * index; i < 256 * index + 256; i++) inv.setItem(i - 256 * index, undefined), world.setDynamicProperty(key, null);
+            if (Array.isArray(value)) {
+                try { for (let i = 256 * index; i < 256 * index + 256; i++) inv.setItem(i - 256 * index, value[i] || undefined) } catch { throw new Error(`§cQIDB > Invalid value type. supported: ItemStack | ItemStack[] | undefined §r${date()}`) }
+                world.setDynamicProperty(key, (Math.floor((value?.length - 1) / 256) + 1) || 1)
+            } else {
+                try { inv.setItem(0, value), world.setDynamicProperty(key, false) } catch { throw new Error(`§cQIDB > Invalid value type. supported: ItemStack | ItemStack[] | undefined §r${date()}`) }
+            }
+        })
         this.#save(key, canStr);
     }
 
@@ -184,7 +218,7 @@ export class QIDB {
      * Sets a value as a key in the item database.
      * @param {string} key The unique identifier of the value.
      * @param {ItemStack[] | ItemStack} value The `ItemStack[]` or `itemStack` value to set.
-     * @throws Throws if `value` is an array that has more than 255 items.
+     * @throws Throws if `value` is an array that has more than 512 items.
      */
     set(key, value) {
         if (!this.#validNamespace) throw new Error(`§cQIDB > Invalid name: <${this.#settings.namespace}>. accepted char: A-Z a-z 0-9 _ §r${date()}`);
@@ -192,8 +226,8 @@ export class QIDB {
         const time = Date.now();
         key = this.#settings.namespace + ":" + key;
         if (Array.isArray(value)) {
-            if (value.length > 255) throw new Error(`§cQIDB > Out of range: <${key}> has more than 255 ItemStacks §r${date()}`)
-            world.setDynamicProperty(key, true)
+            if (value.length > 1024) throw new Error(`§cQIDB > Out of range: <${key}> has more than 1024 ItemStacks §r${date()}`)
+            world.setDynamicProperty(key, (Math.floor((value?.length - 1) / 256) + 1) || 1)
         } else {
             world.setDynamicProperty(key, false)
         }
@@ -224,11 +258,14 @@ export class QIDB {
         }
         const structure = world.structureManager.get(key)
         if (!structure) throw new Error(`§cQIDB > The key < ${key} > doesn't exist.`);
-        const { canStr, inv } = this.#load(key);
+        const { canStr, invs } = this.#load(key);
         const items = [];
-        for (let i = 0; i < 256; i++) items.push(inv.getItem(i));
-        for (let i = 255; i >= 0; i--) if (!items[i]) items.pop(); else break;
+        invs.forEach((inv, index) => {
+            for (let i = 256 * index; i < 256 * index + 256; i++) items.push(inv.getItem(i - 256 * index));
+            for (let i = 256 * index + 255; i >= 0; i--) if (!items[i]) items.pop(); else break;
+        })
         this.#save(key, canStr);
+
         this.logs.get == true && console.log(`§aQIDB > Got items from <${key}> succesfully. ${Date.now() - time}ms §r${date()}`)
 
         if (world.getDynamicProperty(key)) { this.#quickAccess.set(key, items); return items }
