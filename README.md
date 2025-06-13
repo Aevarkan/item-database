@@ -3,7 +3,7 @@ This is a TypeScript implementation of the original database.
 
 This is **not** a drop-in replacement; there are a few changes:
 - You **must** have a namespace, it is not optional
-- The return type for `get` is **only** an `ItemStack` array, not single `ItemStack` instances
+- The return type for `get` is **strictly** `ItemStack[]`, it does not return single `ItemStack` instances
 
 # Original Description
 ## introduction
