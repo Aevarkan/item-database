@@ -1,11 +1,19 @@
-# introduction
+# Item Database
+This is a TypeScript implementation of the original database.
+
+This is **not** a drop-in replacement; there are a few changes:
+- You **must** have a namespace, it is not optional
+- The return type for `get` is **only** an `ItemStack` array, not single `ItemStack` instances
+
+# Original Description
+## introduction
 I made this to fix the **main issue** of Minecraft's script api: **you cant save ItemStacks in a dynamic property**, and if you try to stringify its properties you will still loose some of them that are unreacheable with scripts. **This database fixes this problem using structures saving perfect item clones, making it easy, reliable and fast**....
 
-# How does it work?
+## How does it work?
 
 - This database uses **structures** to save items, it uses an **entity with 255 slots** instead of just dropped items to minimize the lag of the loaded entities, this makes the database have **255 items per key**.
 
-# Features
+## Features
 - **Keys are unlimited**, they re handled by the QIDB class where you put namespace, **cache** size, saves per tick(may change) and developer debug **logs**.
 
 - Cache memory requires a lot of **ram** so i added an option to **limit the cached key amount**.
@@ -14,7 +22,7 @@ I made this to fix the **main issue** of Minecraft's script api: **you cant save
 
 - Developer debug shows the **logs** in the **console** like how much** time** a function has taken.
 
-# What you can do with this?
+## What you can do with this?
 ```diff
 + you CAN use this in your pubblic addon, including database credits in the download page.
 + you CAN use this in your server, just add a credits section in it.
@@ -25,6 +33,6 @@ I made this to fix the **main issue** of Minecraft's script api: **you cant save
 - you CAN'T pubblish custom versions without permissions.
 ```
 
-# Contributes
+## Contributes
 Thanks to Drag0nD that helped me a lot in the creation of the database and gave me the structure method sending me his infinite chest addon.
 https://youtu.be/Trljwe6zay8?si=Yf1gC0ZsvOyAXXEP
