@@ -488,12 +488,12 @@ export class QIDB {
             for (let i = 256 * index; i < 256 * index + 256; i++) items.push(inv.getItem(i - 256 * index) as ItemStack);
             for (let i = 256 * index + 255; i >= 0; i--) if (!items[i]) items.pop(); else break;
         })
-        this.saveStructure(key, existingStructure);
+        this.saveStructure(fullKey, existingStructure);
 
-        this.logs.get == true && logAction(`Got items from <${key}> succesfully. ${Date.now() - time}ms §r${date()}`, LogTypes.log)
+        this.logs.get == true && logAction(`Got items from <${fullKey}> succesfully. ${Date.now() - time}ms §r${date()}`, LogTypes.log)
 
         // Save the item we just got to cache
-        this.quickAccess.set(key, items)
+        this.quickAccess.set(fullKey, items)
         return items
     }
 
