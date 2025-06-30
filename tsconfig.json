@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "noEmit": true,
+    "moduleResolution": "Node",
+    "allowSyntheticDefaultImports": true,
+    "module": "ES2020",
+    "target": "ES2021",
+  },
+  "include": [ "src/*" ]
+}
