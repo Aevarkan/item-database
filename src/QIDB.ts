@@ -123,7 +123,7 @@ export class QIDB {
     /**
      * Where the storage entity will be spawned.
      */
-    private spawnLocation: Vector3
+    private spawnLocation!: Vector3
     /**
      * Contains the database settings.
      */
@@ -135,7 +135,7 @@ export class QIDB {
     /**
      * The dimension that the storage entities will be spawned in.
      */
-    private dimension: Dimension
+    private dimension!: Dimension
 
     /**
      * Creates a new QIDB instance.
@@ -315,7 +315,7 @@ export class QIDB {
             logAction(requiredEntities, LogTypes.log)
             if (requiredEntities) {
                 for (let i = 0; i < requiredEntities; i++) {
-                    // If there is an error here, just get rid of <typeof QIDB.STORAGE_ENTITY>. It's simply there to stop TypeScript errors.
+                    // @ts-expect-error <typeof QIDB.STORAGE_ENTITY> is simply there to stop TypeScript errors.
                     this.dimension.spawnEntity<typeof QIDB.STORAGE_ENTITY>(QIDB.STORAGE_ENTITY, this.spawnLocation)
                 }
             }
@@ -327,7 +327,7 @@ export class QIDB {
             // Spawn more storage entities if needed
             if (entities.length < requiredEntities) {
                 for (let i = entities.length; i < requiredEntities; i++) {
-                    // If there is an error here, just get rid of <typeof QIDB.STORAGE_ENTITY>. It's simply there to stop TypeScript errors.
+                    // @ts-expect-error <typeof QIDB.STORAGE_ENTITY> is simply there to stop TypeScript errors.
                     entities.push(this.dimension.spawnEntity<typeof QIDB.STORAGE_ENTITY>(QIDB.STORAGE_ENTITY, this.spawnLocation))
                 }
             }
