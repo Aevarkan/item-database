@@ -109,6 +109,10 @@ export class QIDB {
      */
     private static readonly VALID_NAMESPACE: RegExp = /^[A-Za-z0-9_]+$/
     /**
+     * QIDB is reserved internally for the database.
+     */
+    private static readonly RESERVED_NAMEPSACE: RegExp = /qidb/i
+    /**
      * `ItemStack[]`s that are currently stored in memory instead of in a structure.
      */
     private quickAccess: Map<string, ItemStack[]>
@@ -129,7 +133,7 @@ export class QIDB {
      */
     private readonly settings: ItemDatabaseSettings
     /**
-     * Objecet that describes the actions that should be logged to console.
+     * Object that describes the actions that should be logged to console.
      */
     private readonly logs: ItemDatabaseLogSettings
     /**
@@ -144,6 +148,8 @@ export class QIDB {
      * The unique namespace for the database keys. This will be the prefix used before the colon `:` in the structure's name.
      * 
      * Supports lower and uppercase English characters, numbers 0 to 9, and the underscore `_`.
+     * 
+     * `qidb` is reserved internally for the database.
      * 
      * @param cacheSize
      * The max amount of keys to keep quickly accessible. A small size can cause lag on frequent iterated usage, a large number can cause high hardware RAM usage.
@@ -171,9 +177,12 @@ export class QIDB {
 
 
         // Check the namespace, if its bad, then we stop immediately
-        if (!(QIDB.VALID_NAMESPACE.test(this.settings.namespace))) {
+        if (!(QIDB.VALID_NAMESPACE.test(namespace))) {
             logAction(`${namespace} isn't a valid namespace. accepted char: A-Z a-z 0-9 _ §r${date()}`, LogTypes.error)
             throw new Error(`Invalid namespace: ${namespace}`)
+        } else if (QIDB.RESERVED_NAMEPSACE.test(namespace)) {
+            logAction(`${namespace} is using the reserved "QIDB" namespace. ${date()}`, LogTypes.error)
+            throw new Error(`Reserved namespace: ${namespace}`)
         }
 
         // Apply the log settings
