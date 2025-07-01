@@ -5,6 +5,40 @@ This is **not** a drop-in replacement; there are a few changes:
 - You **must** have a namespace, it is not optional
 - The return type for `get` is **strictly** `ItemStack[]`, it does not return single `ItemStack` instances
 
+## Exports
+The following structures are exported:
+
+### Classes
+
+- QuickItemDatabase `QIDB`
+
+### Interfaces
+```typescript
+interface ItemDatabaseLogSettings {
+    startUp: boolean,
+    save: boolean,
+    load: boolean,
+    set: boolean,
+    get: boolean,
+    has: boolean,
+    delete: boolean,
+    clear: boolean,
+    values: boolean,
+    keys: boolean,
+}
+```
+
+```typescript
+interface ItemDatabaseSettings {
+    namespace: string
+}
+```
+
+## Miscellaneous
+- Scoreboard objective `qidb`
+- Ticking area `storagearea`
+
+
 # Original Description
 ## introduction
 I made this to fix the **main issue** of Minecraft's script api: **you cant save ItemStacks in a dynamic property**, and if you try to stringify its properties you will still loose some of them that are unreacheable with scripts. **This database fixes this problem using structures saving perfect item clones, making it easy, reliable and fast**....
