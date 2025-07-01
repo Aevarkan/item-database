@@ -11,13 +11,12 @@
 /**
  * TypeScript implementation by Aevarkan (https://github.com/Aevarkan)
  * Changes:
- * Typescript private keyword is used instead of hash notation
  * Only one error is thrown for an invalid namespace. This is thrown during the constructor.
  * The database only returns ItemStack arrays instead of single ItemStack instances
  * Namespace is mandatory, you cannnot put an empty namespace (that's seriously bad practice!)
  * 
  * Targeted SAPI version: 2.1.0-beta (2.1.0-rc.1.21.100-preview.20)
- * There may or may not be TypeScript compiler errors depending on your target version.
+ * There may or may not be TypeScript compiler errors depending on your target version and whether or not you have strict checks.
  * These errors shouldn't affect functionality, however.
  */
 
@@ -95,7 +94,7 @@ const defaultLogs: ItemDatabaseLogSettings = {
     keys: false,
 }
 
-export class QIDB {
+export class QuickItemDatabase {
     /**
      * The scoreboard objective id used when initialising.
      */
@@ -142,7 +141,7 @@ export class QIDB {
     private dimension!: Dimension
 
     /**
-     * Creates a new QIDB instance.
+     * Creates a new QuickItemDatabase instance.
      * 
      * @param namespace
      * The unique namespace for the database keys. This will be the prefix used before the colon `:` in the structure's name.
@@ -177,10 +176,10 @@ export class QIDB {
 
 
         // Check the namespace, if its bad, then we stop immediately
-        if (!(QIDB.VALID_NAMESPACE.test(namespace))) {
+        if (!(QuickItemDatabase.VALID_NAMESPACE.test(namespace))) {
             logAction(`${namespace} isn't a valid namespace. accepted char: A-Z a-z 0-9 _ §r${date()}`, LogTypes.error)
             throw new Error(`Invalid namespace: ${namespace}`)
-        } else if (QIDB.RESERVED_NAMEPSACE.test(namespace)) {
+        } else if (QuickItemDatabase.RESERVED_NAMEPSACE.test(namespace)) {
             logAction(`${namespace} is using the reserved "QIDB" namespace. ${date()}`, LogTypes.error)
             throw new Error(`Reserved namespace: ${namespace}`)
         }
@@ -210,11 +209,11 @@ export class QIDB {
         system.run(() => {
             this.dimension = world.getDimension("minecraft:overworld")
 
-            let sl = world.scoreboard.getObjective(QIDB.SCOREBOARD_ID)
+            let sl = world.scoreboard.getObjective(QuickItemDatabase.SCOREBOARD_ID)
             const player = world.getPlayers()[0]
             if (player) {
                 if (!sl || sl?.hasParticipant('x') === false) {
-                    if (!sl) sl = world.scoreboard.addObjective(QIDB.SCOREBOARD_ID);
+                    if (!sl) sl = world.scoreboard.addObjective(QuickItemDatabase.SCOREBOARD_ID);
                     sl.setScore('x', player.location.x)
                     sl.setScore('z', player.location.z)
                     this.spawnLocation = { x: sl.getScore('x') as number, y: 318, z: sl.getScore('z')  as number }
@@ -228,7 +227,7 @@ export class QIDB {
             world.afterEvents.playerSpawn.subscribe(({ player, initialSpawn }) => {
                 if (!initialSpawn) return;
                 if (!sl || sl?.hasParticipant('x') === false) {
-                    if (!sl) sl = world.scoreboard.addObjective(QIDB.SCOREBOARD_ID);
+                    if (!sl) sl = world.scoreboard.addObjective(QuickItemDatabase.SCOREBOARD_ID);
                     sl.setScore('x', player.location.x)
                     sl.setScore('z', player.location.z)
                     this.spawnLocation = { x: sl.getScore('x') as number, y: 318, z: sl.getScore('z') as number }
@@ -324,20 +323,20 @@ export class QIDB {
             logAction(requiredEntities, LogTypes.log)
             if (requiredEntities) {
                 for (let i = 0; i < requiredEntities; i++) {
-                    // @ts-expect-error <typeof QIDB.STORAGE_ENTITY> is simply there to stop TypeScript errors.
-                    this.dimension.spawnEntity<typeof QIDB.STORAGE_ENTITY>(QIDB.STORAGE_ENTITY, this.spawnLocation)
+                    // @ts-expect-error <typeof QuickItemDatabase.STORAGE_ENTITY> is simply there to stop TypeScript errors.
+                    this.dimension.spawnEntity<typeof QuickItemDatabase.STORAGE_ENTITY>(QuickItemDatabase.STORAGE_ENTITY, this.spawnLocation)
                 }
             }
         }
 
         // Now get those storage entities
-        const entities: Entity[] = this.dimension.getEntities({ location: this.spawnLocation, type: QIDB.STORAGE_ENTITY })
+        const entities: Entity[] = this.dimension.getEntities({ location: this.spawnLocation, type: QuickItemDatabase.STORAGE_ENTITY })
         if (requiredEntities) {
             // Spawn more storage entities if needed
             if (entities.length < requiredEntities) {
                 for (let i = entities.length; i < requiredEntities; i++) {
-                    // @ts-expect-error <typeof QIDB.STORAGE_ENTITY> is simply there to stop TypeScript errors.
-                    entities.push(this.dimension.spawnEntity<typeof QIDB.STORAGE_ENTITY>(QIDB.STORAGE_ENTITY, this.spawnLocation))
+                    // @ts-expect-error <typeof QuickItemDatabase.STORAGE_ENTITY> is simply there to stop TypeScript errors.
+                    entities.push(this.dimension.spawnEntity<typeof QuickItemDatabase.STORAGE_ENTITY>(QuickItemDatabase.STORAGE_ENTITY, this.spawnLocation))
                 }
             }
             // Vice versa if there are more entities than needed
@@ -374,7 +373,7 @@ export class QIDB {
         world.structureManager.createFromWorld(key, this.dimension, this.spawnLocation, this.spawnLocation, { saveMode: StructureSaveMode.World, includeEntities: true });
         
         // Delete the storage entities
-        const entities = this.dimension.getEntities({ location: this.spawnLocation, type: QIDB.STORAGE_ENTITY });
+        const entities = this.dimension.getEntities({ location: this.spawnLocation, type: QuickItemDatabase.STORAGE_ENTITY });
         entities.forEach(e => e.remove());
     }
 

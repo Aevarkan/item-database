@@ -10,7 +10,7 @@ The following structures are exported:
 
 ### Classes
 
-- QuickItemDatabase `QIDB`
+- `QuickItemDatabase`
 
 ### Interfaces
 ```typescript
