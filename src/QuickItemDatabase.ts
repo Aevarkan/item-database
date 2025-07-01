@@ -20,7 +20,7 @@
  * These errors shouldn't affect functionality, however.
  */
 
-import { world, system, ItemStack, Entity, Dimension, StructureSaveMode, EntityComponentTypes, Vector3, Container, EntityInventoryComponent } from '@minecraft/server';
+import { world, system, ItemStack, Entity, Dimension, StructureSaveMode, EntityComponentTypes, Vector3, Container, EntityInventoryComponent, Player } from '@minecraft/server';
 
 function date() {
     const date = new Date(Date.now())
@@ -97,10 +97,8 @@ const defaultLogs: ItemDatabaseLogSettings = {
 }
 
 export class QuickItemDatabase {
-    /**
-     * The scoreboard objective id used when initialising.
-     */
-    private static readonly SCOREBOARD_ID: string = "qidb"
+
+    
     /**
      * The entity used for storing items.
      */
@@ -113,7 +111,20 @@ export class QuickItemDatabase {
      * QIDB is reserved internally for the database.
      */
     private static readonly RESERVED_NAMEPSACE: RegExp = /qidb/i
-
+    /**
+     * The prefix of the dynamic property used when initialising.
+     * @remarks
+     * This is reserved by the database and enforced by the regular expression above.
+     */
+    private static readonly DYNAMIC_PROPERTY_PREFIX: string = "qidb"
+    /**
+     * The Y level where the entities are spawned in.
+     */
+    private static readonly SPAWN_LOCATION_Y_COORDINATE: number = 318
+    /**
+     * The name of the ticking area used for database operations.
+     */
+    private static readonly TICKING_AREA_NAME: string = "storagearea"
 
     /**
      * `ItemStack[]`s that are currently stored in memory instead of in a structure.
@@ -168,7 +179,10 @@ export class QuickItemDatabase {
      * 
      * @throws Throws if an invalid namespace is provided.
      * 
-     * @remarks This should be initialised in the global namespace; not doing so can lead to errors.
+     * @remarks
+     * This should be initialised in the global namespace, not doing so can lead to errors.
+     * 
+     * This database uses dynamic properties with the `qidb` prefix internally which may pollute your environment.
      */
     constructor(namespace: string, cacheSize: number = 50, saveRate: number = 1, logSettings: ItemDatabaseLogSettings = defaultLogs) {
         this.settings = {
@@ -210,42 +224,69 @@ export class QuickItemDatabase {
     private _start() {
         const startLog = () => {
             logAction(`Initialized successfully.§r namespace: ${this.settings.namespace} §r${date()}`, LogTypes.log)
-
             if (this.settings.saveRate > 1) {
                 logAction(`Using a saveRate bigger than 1 can cause slower game ticks and extreme lag while saving 1024 size keys. at <${this.settings.namespace}> §r${date()}`, LogTypes.warn)
             }
-
         }
 
-        let sl = world.scoreboard.getObjective(QuickItemDatabase.SCOREBOARD_ID)
-        const player = world.getPlayers()[0]
-        if (player) {
-            if (!sl || sl?.hasParticipant('x') === false) {
-                if (!sl) sl = world.scoreboard.addObjective(QuickItemDatabase.SCOREBOARD_ID);
-                sl.setScore('x', player.location.x)
-                sl.setScore('z', player.location.z)
-                this.spawnLocation = { x: sl.getScore('x') as number, y: 318, z: sl.getScore('z')  as number }
-                this.dimension.runCommand(`/tickingarea add ${this.spawnLocation.x} 319 ${this.spawnLocation.z} ${this.spawnLocation.x} 318 ${this.spawnLocation.z} storagearea`);
-                startLog()
-            } else {
-                this.spawnLocation = { x: sl.getScore('x')  as number, y: 318, z: sl.getScore('z') as number}
-                startLog()
+        const initialiseLocation = (player: Player) => {
+            // Get the location for the ticking area and subsequent spawn if already set
+            const initialisedKey = QuickItemDatabase.DYNAMIC_PROPERTY_PREFIX + ":initialised"
+            const xLocationKey = QuickItemDatabase.DYNAMIC_PROPERTY_PREFIX + ":x"
+            const zLocationKey = QuickItemDatabase.DYNAMIC_PROPERTY_PREFIX + ":z"
+            let xLocation = world.getDynamicProperty(xLocationKey) as number | undefined
+            let zLocation = world.getDynamicProperty(zLocationKey) as number | undefined
+            const wasInitialised = world.getDynamicProperty(initialisedKey) as boolean | undefined
+
+            // If the locations aren't already set from a previous
+            // session, then we get them from the player
+            if (xLocation === undefined) {
+                xLocation = player.location.x
+                world.setDynamicProperty(xLocationKey, xLocation)
             }
+            if (zLocation === undefined) {
+                zLocation = player.location.z
+                world.setDynamicProperty(zLocationKey, zLocation)
+            }
+
+            // We can set the spawn location now that we have both x and z
+            this.spawnLocation = { x: xLocation, y: QuickItemDatabase.SPAWN_LOCATION_Y_COORDINATE, z: zLocation }
+
+            // If the ticking area wasn't created yet, we create it
+            if (!wasInitialised) {
+                world.setDynamicProperty(initialisedKey, true)
+                const oneAboveSpawm = this.spawnLocation.y + 1
+
+                // Same as writing it into one string, but this is easier to read
+                const tickingAreaCommand = [
+                    "tickingarea add",
+                    this.spawnLocation.x, oneAboveSpawm, this.spawnLocation.z,
+                    this.spawnLocation.x, this.spawnLocation.y, this.spawnLocation.z,
+                    QuickItemDatabase.TICKING_AREA_NAME
+                ].join(" ")
+
+                this.dimension.runCommand(tickingAreaCommand)
+            }
+
+            // Now display the start log
+            startLog()
         }
-        world.afterEvents.playerSpawn.subscribe(({ player, initialSpawn }) => {
-            if (!initialSpawn) return;
-            if (!sl || sl?.hasParticipant('x') === false) {
-                if (!sl) sl = world.scoreboard.addObjective(QuickItemDatabase.SCOREBOARD_ID);
-                sl.setScore('x', player.location.x)
-                sl.setScore('z', player.location.z)
-                this.spawnLocation = { x: sl.getScore('x') as number, y: 318, z: sl.getScore('z') as number }
-                this.dimension.runCommand(`/tickingarea add ${this.spawnLocation.x} 319 ${this.spawnLocation.z} ${this.spawnLocation.x} 318 ${this.spawnLocation.z} storagearea`);
-                startLog()
-            } else {
-                this.spawnLocation = { x: sl.getScore('x') as number, y: 318, z: sl.getScore('z') as number }
-                startLog()
-            }
-        })
+
+        // Check if there's a player spawned in
+        const existingPlayer = world.getPlayers()[0]
+        if (existingPlayer) {
+            // Call that function we just defined
+            initialiseLocation(existingPlayer)
+        } else {
+            // If there's no player, then we wait for one to spawn in
+            const spawnListener = world.afterEvents.playerSpawn.subscribe(({ player, initialSpawn }) => {
+                if (!initialSpawn) return
+                
+                initialiseLocation(player)
+                world.afterEvents.playerSpawn.unsubscribe(spawnListener)
+            })
+        }
+        
 
         // Run logic
 
