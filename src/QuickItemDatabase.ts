@@ -64,8 +64,10 @@ enum LogTypes {
     error
 }
 
-export interface ItemDatabaseSettings {
-    namespace: string
+interface ItemDatabaseSettings {
+    namespace: string,
+    cacheSize: number,
+    saveRate: number
 }
 
 export interface ItemDatabaseLogSettings {
@@ -111,6 +113,8 @@ export class QuickItemDatabase {
      * QIDB is reserved internally for the database.
      */
     private static readonly RESERVED_NAMEPSACE: RegExp = /qidb/i
+
+
     /**
      * `ItemStack[]`s that are currently stored in memory instead of in a structure.
      */
@@ -167,7 +171,11 @@ export class QuickItemDatabase {
      * @remarks This should be initialised in the global namespace; not doing so can lead to errors.
      */
     constructor(namespace: string, cacheSize: number = 50, saveRate: number = 1, logSettings: ItemDatabaseLogSettings = defaultLogs) {
-        this.settings = { namespace: namespace }
+        this.settings = {
+            namespace: namespace,
+            cacheSize: cacheSize,
+            saveRate: saveRate
+        }
         this.queuedKeys = []
         this.queuedValues = []
         this.quickAccess = new Map()
@@ -187,109 +195,113 @@ export class QuickItemDatabase {
         // Apply the log settings
         this.logs = logSettings
 
-        // Arrow function to preserve `this`
-        const startLog = () => {
-            logAction(`Initialized successfully.§r namespace: ${this.settings.namespace} §r${date()}`, LogTypes.log)
-
-            if (saveRate > 1) {
-                logAction(`using a saveRate bigger than 1 can cause slower game ticks and extreme lag while saving 1024 size keys. at <${this.settings.namespace}> §r${date()}`, LogTypes.warn)
-                // player.isOp doesn't appear to be a thing
-                // world.getPlayers().forEach(player => {
-                //     if (player.isOp) {
-                //         player.sendMessage(
-                //             `§c§lWARNING! \n§r§cQIDB > using a saveRate bigger than 1 can cause slower game ticks and extreme lag while saving 1024 size keys. at <${this.settings.namespace}> §r${date()} `
-                //         )
-                //     }
-                // })
-            }
-
-        }
-
         // 2.0 requires this due to early execution
         system.run(() => {
             this.dimension = world.getDimension("minecraft:overworld")
 
-            let sl = world.scoreboard.getObjective(QuickItemDatabase.SCOREBOARD_ID)
-            const player = world.getPlayers()[0]
-            if (player) {
-                if (!sl || sl?.hasParticipant('x') === false) {
-                    if (!sl) sl = world.scoreboard.addObjective(QuickItemDatabase.SCOREBOARD_ID);
-                    sl.setScore('x', player.location.x)
-                    sl.setScore('z', player.location.z)
-                    this.spawnLocation = { x: sl.getScore('x') as number, y: 318, z: sl.getScore('z')  as number }
-                    this.dimension.runCommand(`/tickingarea add ${this.spawnLocation.x} 319 ${this.spawnLocation.z} ${this.spawnLocation.x} 318 ${this.spawnLocation.z} storagearea`);
-                    startLog()
-                } else {
-                    this.spawnLocation = { x: sl.getScore('x')  as number, y: 318, z: sl.getScore('z') as number}
-                    startLog()
-                }
-            }
-            world.afterEvents.playerSpawn.subscribe(({ player, initialSpawn }) => {
-                if (!initialSpawn) return;
-                if (!sl || sl?.hasParticipant('x') === false) {
-                    if (!sl) sl = world.scoreboard.addObjective(QuickItemDatabase.SCOREBOARD_ID);
-                    sl.setScore('x', player.location.x)
-                    sl.setScore('z', player.location.z)
-                    this.spawnLocation = { x: sl.getScore('x') as number, y: 318, z: sl.getScore('z') as number }
-                    this.dimension.runCommand(`/tickingarea add ${this.spawnLocation.x} 319 ${this.spawnLocation.z} ${this.spawnLocation.x} 318 ${this.spawnLocation.z} storagearea`);
-                    startLog()
-                } else {
-                    this.spawnLocation = { x: sl.getScore('x') as number, y: 318, z: sl.getScore('z') as number }
-                    startLog()
-                }
-            })
-            let show = true
-            let runId
-            let lastam
-            system.runInterval(() => {
-                const diff = this.quickAccess.size - cacheSize;
-                if (diff > 0) {
-                    for (let i = 0; i < diff; i++) {
-                        this.quickAccess.delete(this.quickAccess.keys().next()?.value);
-                    }
-                }
-                if (this.queuedKeys.length) {
-
-                    if (!runId) {
-
-                        log()
-                        runId = system.runInterval(() => {
-                            log()
-                        }, 120)
-                    }
-                    show = false
-                    const k = Math.min(saveRate, this.queuedKeys.length)
-                    for (let i = 0; i < k; i++) {
-                        this.save(this.queuedKeys[0], this.queuedValues[0]);
-                        this.queuedKeys.shift();
-                        this.queuedValues.shift()
-                    }
-                } else if (runId) {
-                    system.clearRun(runId)
-                    runId = undefined
-                    show == false && this.logs.save == true && logAction(`Saved, You can now close the world safely. §r${date()}`, LogTypes.log)
-                    show = true
-                    return
-                } else return
-            }, 1)
-            // Arrow function to preserve `this`
-            const log = () => {
-                const abc = (-(this.queuedKeys.length - lastam) / 6).toFixed(0) || '//'
-                this.logs.save == true && logAction(`Saving, Dont close the world.\n§r[Stats]-§eRemaining: ${this.queuedKeys.length} keys | speed: ${abc} keys/s §r${date()}`, LogTypes.log)
-                lastam = this.queuedKeys.length
-            }
-            system.beforeEvents.shutdown.subscribe(() => {
-                if (this.queuedKeys.length) {
-                    logAction(
-                        `Fatal Error >§r§c World closed too early, items not saved correctly.  \n\n` +
-                        `Namespace: ${this.settings.namespace}\n` +
-                        `Lost Keys amount: ${this.queuedKeys.length} §r${date()}\n\n\n\n`,
-                        LogTypes.error
-                    )
-                }
-            })
+            this._start()
         })
         
+    }
+
+    /**
+     * Initialisation logic for the database.
+     */
+    private _start() {
+        const startLog = () => {
+            logAction(`Initialized successfully.§r namespace: ${this.settings.namespace} §r${date()}`, LogTypes.log)
+
+            if (this.settings.saveRate > 1) {
+                logAction(`Using a saveRate bigger than 1 can cause slower game ticks and extreme lag while saving 1024 size keys. at <${this.settings.namespace}> §r${date()}`, LogTypes.warn)
+            }
+
+        }
+
+        let sl = world.scoreboard.getObjective(QuickItemDatabase.SCOREBOARD_ID)
+        const player = world.getPlayers()[0]
+        if (player) {
+            if (!sl || sl?.hasParticipant('x') === false) {
+                if (!sl) sl = world.scoreboard.addObjective(QuickItemDatabase.SCOREBOARD_ID);
+                sl.setScore('x', player.location.x)
+                sl.setScore('z', player.location.z)
+                this.spawnLocation = { x: sl.getScore('x') as number, y: 318, z: sl.getScore('z')  as number }
+                this.dimension.runCommand(`/tickingarea add ${this.spawnLocation.x} 319 ${this.spawnLocation.z} ${this.spawnLocation.x} 318 ${this.spawnLocation.z} storagearea`);
+                startLog()
+            } else {
+                this.spawnLocation = { x: sl.getScore('x')  as number, y: 318, z: sl.getScore('z') as number}
+                startLog()
+            }
+        }
+        world.afterEvents.playerSpawn.subscribe(({ player, initialSpawn }) => {
+            if (!initialSpawn) return;
+            if (!sl || sl?.hasParticipant('x') === false) {
+                if (!sl) sl = world.scoreboard.addObjective(QuickItemDatabase.SCOREBOARD_ID);
+                sl.setScore('x', player.location.x)
+                sl.setScore('z', player.location.z)
+                this.spawnLocation = { x: sl.getScore('x') as number, y: 318, z: sl.getScore('z') as number }
+                this.dimension.runCommand(`/tickingarea add ${this.spawnLocation.x} 319 ${this.spawnLocation.z} ${this.spawnLocation.x} 318 ${this.spawnLocation.z} storagearea`);
+                startLog()
+            } else {
+                this.spawnLocation = { x: sl.getScore('x') as number, y: 318, z: sl.getScore('z') as number }
+                startLog()
+            }
+        })
+
+        // Run logic
+
+        // Arrow function to preserve `this`
+        const log = () => {
+            const abc = (-(this.queuedKeys.length - lastam) / 6).toFixed(0) || '//'
+            this.logs.save == true && logAction(`Saving, Dont close the world.\n§r[Stats]-§eRemaining: ${this.queuedKeys.length} keys | speed: ${abc} keys/s §r${date()}`, LogTypes.log)
+            lastam = this.queuedKeys.length
+        }
+
+        let show = true
+        let runId: number | undefined
+        let lastam: number
+        system.runInterval(() => {
+            const diff = this.quickAccess.size - this.settings.cacheSize;
+            if (diff > 0) {
+                for (let i = 0; i < diff; i++) {
+                    this.quickAccess.delete(this.quickAccess.keys().next()?.value);
+                }
+            }
+            if (this.queuedKeys.length) {
+
+                if (runId === undefined) {
+                    log()
+                    runId = system.runInterval(() => {
+                        log()
+                    }, 120)
+                }
+                show = false
+                const k = Math.min(this.settings.saveRate, this.queuedKeys.length)
+                for (let i = 0; i < k; i++) {
+                    this.save(this.queuedKeys[0], this.queuedValues[0]);
+                    this.queuedKeys.shift();
+                    this.queuedValues.shift()
+                }
+            } else if (runId) {
+                system.clearRun(runId)
+                runId = undefined
+                show == false && this.logs.save == true && logAction(`Saved, You can now close the world safely. §r${date()}`, LogTypes.log)
+                show = true
+                return
+            }
+        }, 1)
+
+        // Error notification if shutdown leads to lost data.
+        // This does not attempt to save the data as it is too late to do so.
+        system.beforeEvents.shutdown.subscribe(() => {
+            if (this.queuedKeys.length) {
+                logAction(
+                    `Fatal Error >§r§c World closed too early, items not saved correctly.  \n\n` +
+                    `Namespace: ${this.settings.namespace}\n` +
+                    `Lost Keys amount: ${this.queuedKeys.length} §r${date()}\n\n\n\n`,
+                    LogTypes.error
+                )
+            }
+        })
     }
 
     /**

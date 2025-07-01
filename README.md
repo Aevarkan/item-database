@@ -28,12 +28,6 @@ interface ItemDatabaseLogSettings {
 }
 ```
 
-```typescript
-interface ItemDatabaseSettings {
-    namespace: string
-}
-```
-
 ## Miscellaneous
 - Scoreboard objective `qidb`
 - Ticking area `storagearea`
