@@ -6,6 +6,10 @@
     "allowSyntheticDefaultImports": true,
     "module": "ES2020",
     "target": "ES2021",
+    "baseUrl": ".",
+    "paths": {
+      "@src/*": ["src/*"]
+    }
   },
-  "include": [ "src/*" ]
+  "include": [ "src/*", "tests/*" ]
 }
