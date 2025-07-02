@@ -271,18 +271,24 @@ export class QuickItemDatabase {
     }
 
     /**
-     * Gets the value of a key from the item database.
-     * @param key The identifier of the value.
-     * @returns The `ItemStack[]` saved as `key`.
-     * @throws Throws if the key doesn't exist.
+     * Gets the itemstack from an identifier.
+     * @param identifier The itemstack identifier.
+     * @returns The `ItemStack[]` saved as `identifier`, or `undefined` if it is not present.
+     * @throws Throws if the given identifier is not defined.
      * @remarks
      * This function can't be called in read-only mode.
      * 
      * Single `ItemStack`s saved using `set` will still return an array.
      */
-    public get(key: string): ItemStack[] {
+    public get(identifier: string): ItemStack[] | undefined {
+
+        // Undefined check
+        if (identifier === undefined) {
+            throw new Error(`§cQIDB > The identifier is not defined.`)
+        }
+
         const time = Date.now();
-        const fullKey = this.settings.namespace + ":" + key
+        const fullKey = this.settings.namespace + ":" + identifier
 
         // Try quick access cache first
         if (this.quickAccess.has(fullKey)) {
@@ -296,7 +302,7 @@ export class QuickItemDatabase {
         const structure = world.structureManager.get(fullKey)
         if (!structure) {
             logAction(`The key < ${fullKey} > doesn't exist.`, LogTypes.error)
-            throw new Error(`§cQIDB > The key < ${fullKey} > doesn't exist.`)
+            return undefined
         }
         // Get the containers
         const { existingStructure, containers } = this.getInventories(fullKey)
@@ -405,7 +411,10 @@ export class QuickItemDatabase {
         const values: ItemStack[][] = []
         const filtered = allIds.filter(id => id.startsWith(this.settings.namespace + ":")).map(id => id.replace(this.settings.namespace + ":", ""))
         for (const key of filtered) {
-            values.push(this.get(key))
+            const value = this.get(key)
+            if (value) {
+                values.push(value)
+            }
         }
         if (this.logs.values) {
             logAction(`Got the list of all the ${values.length} values. ${Date.now() - time}ms §r${date()}`, LogTypes.log)
