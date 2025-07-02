@@ -271,6 +271,37 @@ export class QuickItemDatabase {
     }
 
     /**
+     * Gets an itemstack stored in the database's cache.
+     * @param identifier The itemstack identifier.
+     * @returns The `ItemStack[]` saved in cache, or `undefined` if it is not present.
+     * @throws Throws if the given identifier is not defined.
+     * @remarks
+     * This function can be called in read-only mode as it only checks the cache.
+     * 
+     * `ItemStack` singletons saved using `set` will still return an array.
+     */
+    public quickGet(identifier: string): ItemStack[] | undefined {
+        // Undefined check
+        if (identifier === undefined) {
+            throw new Error(`§cQIDB > The identifier is not defined.`)
+        }
+
+        const time = Date.now();
+        const fullKey = this.settings.namespace + ":" + identifier
+
+        const itemStack = this.quickAccess.get(fullKey)
+
+        if (this.logs.get) {
+            if (itemStack) {
+                logAction(`Got items from cache <${fullKey}> succesfully. ${Date.now() - time}ms §r${date()}`, LogTypes.log)
+            } else {
+                logAction(`Entry <${fullKey}> does not exist in cache. ${Date.now() - time}ms §r${date()}`, LogTypes.log)
+            }
+        }
+        return itemStack
+    }
+
+    /**
      * Gets the itemstack from an identifier.
      * @param identifier The itemstack identifier.
      * @returns The `ItemStack[]` saved as `identifier`, or `undefined` if it is not present.
