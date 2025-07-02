@@ -378,7 +378,7 @@ export class QuickItemDatabase {
 
     /**
      * Gets the inventories of the storage entities.
-     * @param key The structure name, including the prefix.
+     * @param fullKey The whole structure id, including the prefix.
      * @param requiredEntities
      * The number of entities required to contain all inventories. Each entity can store a maximum of 256 slots.
      * 
@@ -390,16 +390,17 @@ export class QuickItemDatabase {
      * 
      * This function can't be called in read-only mode.
      */
-    private getInventories(key: string, requiredEntities?: number) {
+    private getInventories(fullKey: string, requiredEntities?: number) {
         // Check the key length, we don't accept longer than 30 characters
-        if (key.length > 30) {
-            logAction(`Out of range: <${key}> has more than 30 characters §r${date()}`, LogTypes.error)
-            throw new Error(`§cQIDB > Out of range: <${key}> has more than 30 characters §r${date()}`)
+        // This character limit includes the prefix and the colon.
+        if (fullKey.length > 30) {
+            logAction(`Out of range: <${fullKey}> has more than 30 characters §r${date()}`, LogTypes.error)
+            throw new Error(`§cQIDB > Out of range: <${fullKey}> has more than 30 characters §r${date()}`)
         }
 
         // Get the existing structure if it's there, otherwise spawn in new storage entities
         let existingStructure = false
-        const structure = world.structureManager.get(key)
+        const structure = world.structureManager.get(fullKey)
         if (structure) {
             world.structureManager.place(structure, this.dimension, this.spawnLocation, { includeEntities: true })
             existingStructure = true
@@ -440,7 +441,7 @@ export class QuickItemDatabase {
             containers.push((entity.getComponent(EntityComponentTypes.Inventory) as EntityInventoryComponent).container)
         })
 
-        this.logs.load == true && logAction(`Loaded ${entities.length} entities <${key}> §r${date()}`, LogTypes.log)
+        this.logs.load == true && logAction(`Loaded ${entities.length} entities <${fullKey}> §r${date()}`, LogTypes.log)
         return { existingStructure, containers }
     }
 
