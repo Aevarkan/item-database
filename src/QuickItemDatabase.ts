@@ -112,6 +112,10 @@ export class QuickItemDatabase {
      */
     private static readonly STORAGE_ENTITY: string = "qidb:storage"
     /**
+     * The number of inventory slots the storage entity has.
+     */
+    private static readonly STORAGE_ENTITY_CAPACITY: number = 256
+    /**
      * The namespace for QIDB only allows lower and uppercase English characters, numbers 0 to 9, and the underscore _.
      */
     private static readonly VALID_NAMESPACE: RegExp = /^[A-Za-z0-9_]+$/
@@ -167,21 +171,21 @@ export class QuickItemDatabase {
      * Creates a new QuickItemDatabase instance.
      * 
      * @param namespace
-     * The unique namespace for the database keys. This will be the prefix used before the colon `:` in the structure's name.
+     * The unique namespace for the database identifiers. This will be the prefix used before the colon `:` in the structure's name.
      * 
      * Supports lower and uppercase English characters, numbers 0 to 9, and the underscore `_`.
      * 
      * `qidb` is reserved internally for the database.
      * 
      * @param cacheSize
-     * The max amount of keys to keep quickly accessible. A small size can cause lag on frequent iterated usage, a large number can cause high hardware RAM usage.
+     * The max amount of entries to keep quickly accessible. A small size can cause lag on frequent iterated usage, a large number can cause high hardware RAM usage.
      * 
      * The default size is 50 elements.
      * 
      * @param saveRate
      * The background saves per tick (high performance impact).
      * 
-     * The default `saveRate` of 1 is 20 keys per second.
+     * The default `saveRate` of 1 is 20 entries per second.
      * 
      * @param logSettings The database actions that should be logged to console.
      * 
@@ -226,8 +230,8 @@ export class QuickItemDatabase {
     }
 
     /**
-     * Sets a value as a key in the item database.
-     * @param key The unique identifier of the value.
+     * Adds an entry to the database..
+     * @param identifier The itemstack identifier.
      * @param value The `ItemStack[]` or `ItemStack` value to set.
      * @throws Throws if `value` is an `ItemStack` array that has more than 1024 items.
      * @remarks
@@ -235,9 +239,9 @@ export class QuickItemDatabase {
      * 
      * The maximum array size is 1024 elements.
      */
-    public set(key: string, value: ItemStack[] | ItemStack): void {
+    public set(identifier: string, value: ItemStack[] | ItemStack): void {
         const time = Date.now();
-        const fullKey = this.settings.namespace + ":" + key
+        const fullKey = this.settings.namespace + ":" + identifier
 
         // Put the ItemStack into an array if its not already
         let itemStackArray = value
@@ -251,7 +255,9 @@ export class QuickItemDatabase {
             throw new Error(`§cQIDB > Out of range: <${fullKey}> has more than 1024 ItemStacks §r${date()}`)
         }
 
-        world.setDynamicProperty(fullKey, (Math.floor((itemStackArray.length - 1) / 256) + 1) || 1)
+        // Add the dynamic property key to the database
+        const entitiesRequired = Math.max(Math.floor((itemStackArray.length - 1) / QuickItemDatabase.STORAGE_ENTITY_CAPACITY) + 1, 1)
+        world.setDynamicProperty(fullKey, entitiesRequired)
 
         // Add to memory cache, overriding any old ones
         // Removing the entry first refreshes it and moves it to the end of the deletion queue
@@ -262,6 +268,8 @@ export class QuickItemDatabase {
         if (duplicateIndex !== -1) {
             this.queuedEntries.splice(duplicateIndex, 1)
         }
+
+        // Queue saving the entry to disk
         this.queueSave(fullKey, itemStackArray)
 
         // Logging
@@ -367,13 +375,13 @@ export class QuickItemDatabase {
 
     /**
      * Checks if a key exists in the item database.
-     * @param key The identifier of the value.
+     * @param identifier The itemstack identifier.
      * @returns `true` if the key exists, `false` if the key doesn't exist.
      * @remarks This function can't be called in read-only mode.
      */
-    public has(key: string): boolean {
+    public has(identifier: string): boolean {
         const time = Date.now();
-        const fullKey = this.settings.namespace + ":" + key
+        const fullKey = this.settings.namespace + ":" + identifier
 
         // The key doesn't exist, and we must prove it does
         let keyExists = false
@@ -396,13 +404,13 @@ export class QuickItemDatabase {
 
     /**
      * Deletes an entry from the item database.
-     * @param key The identifier of the value.
+     * @param identifier The itemstack identifier.
      * @returns `true` if the entry existed, `false` if it didn't.
      * @remarks This function can't be called in read-only mode.
      */
-    public delete(key: string): boolean {
+    public delete(identifier: string): boolean {
         const time = Date.now()
-        const fullKey = this.settings.namespace + ":" + key
+        const fullKey = this.settings.namespace + ":" + identifier
 
         // Delete from the cache and delete the structure from world
         const inCache = this.quickAccess.delete(fullKey)
@@ -444,7 +452,7 @@ export class QuickItemDatabase {
     }
 
     /**
-     * Gets all the keys of your namespace from item database (takes some time if values aren't alredy loaded in quickAccess).
+     * Gets all `ItemStack[]` arrays stored currently stored in the database.
      * @returns All values as an `ItemStack[]` array.
      * @remarks This function can't be called in read-only mode.
      */
@@ -748,7 +756,7 @@ export class QuickItemDatabase {
         let requiredEntities = 1
         const isArray = Array.isArray(value)
         if (isArray) {
-            requiredEntities = Math.floor((value?.length - 1) / 256) + 1
+            requiredEntities = Math.floor((value?.length - 1) / QuickItemDatabase.STORAGE_ENTITY_CAPACITY) + 1 || 1
         }
 
         // Get the inventories to place the items in
@@ -761,7 +769,7 @@ export class QuickItemDatabase {
             // Otherwise save them
             if (isArray) {
                 try { for (let i = 256 * index; i < 256 * index + 256; i++) inv.setItem(i - 256 * index, value[i] || undefined) } catch { throw new Error(`§cQIDB > Invalid value type. supported: ItemStack | ItemStack[] | undefined §r${date()}`) }
-                world.setDynamicProperty(key, (Math.floor((value?.length - 1) / 256) + 1) || 1)
+                world.setDynamicProperty(key, requiredEntities)
             } else {
                 try { inv.setItem(0, value), world.setDynamicProperty(key, false) } catch { throw new Error(`§cQIDB > Invalid value type. supported: ItemStack | ItemStack[] | undefined §r${date()}`) }
             }
