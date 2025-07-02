@@ -12,6 +12,11 @@ The following structures are exported:
 
 - `QuickItemDatabase`
 
+### Dynamic Properties
+The namespace you set for the database will be the prefix for any dynamic properties. This can interfere with your add-on if you use the same namespace.
+
+The `qidb` namespace is reserved, as the database uses it internally.
+
 ### Interfaces
 ```typescript
 interface ItemDatabaseLogSettings {
@@ -29,7 +34,6 @@ interface ItemDatabaseLogSettings {
 ```
 
 ## Miscellaneous
-- Scoreboard objective `qidb`
 - Ticking area `storagearea`
 
 
