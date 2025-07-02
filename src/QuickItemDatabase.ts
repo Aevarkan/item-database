@@ -324,13 +324,25 @@ export class QuickItemDatabase {
      */
     public has(key: string): boolean {
         const time = Date.now();
-        key = this.settings.namespace + ":" + key;
-        const exist = this.quickAccess.has(key) || world.structureManager.get(key)
-        if (this.logs.has) {
-            logAction(`Found key <${key}> succesfully. ${Date.now() - time}ms §r${date()}`, LogTypes.log)
+        const fullKey = this.settings.namespace + ":" + key
+
+        // The key doesn't exist, and we must prove it does
+        let keyExists = false
+        if (this.quickAccess.has(fullKey)) {
+            keyExists = true
+        } else if (world.structureManager.get(fullKey)) {
+            keyExists = true
         }
 
-        if (exist) return true; else return false
+        if (this.logs.has) {
+            if (keyExists) {
+                logAction(`Found entry <${fullKey}> succesfully. ${Date.now() - time}ms §r${date()}`, LogTypes.log)
+            } else {
+                logAction(`Entry <${fullKey}> doesn't exist in database. ${Date.now() - time}ms §r${date()}`, LogTypes.log)
+            }
+        }
+
+        return keyExists
     }
 
     /**
