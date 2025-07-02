@@ -354,6 +354,18 @@ export class QuickItemDatabase {
     }
 
     /**
+     * Checks if an entry exists in the item database's cache.
+     * @param identifier The itemstack identifier.
+     * @returns `true` if the entry exists, `false` if the entry doesn't exist.
+     * @remarks This function can be called in read-only mode as it only checks the cache.
+     */
+    public quickHas(identifier: string): boolean {
+        const fullKey = this.settings.namespace + ":" + identifier
+
+        return this.quickAccess.has(fullKey)
+    }
+
+    /**
      * Checks if a key exists in the item database.
      * @param key The identifier of the value.
      * @returns `true` if the key exists, `false` if the key doesn't exist.
