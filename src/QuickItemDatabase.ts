@@ -286,7 +286,9 @@ export class QuickItemDatabase {
 
         // Try quick access cache first
         if (this.quickAccess.has(fullKey)) {
-            this.logs.get == true && logAction(`Got key <${fullKey}> succesfully. ${Date.now() - time}ms §r${date()}`, LogTypes.log)
+            if (this.logs.get) {
+                logAction(`Got items from cache <${fullKey}> succesfully. ${Date.now() - time}ms §r${date()}`, LogTypes.log)
+            }
             return this.quickAccess.get(fullKey) as ItemStack[]
         }
 
@@ -305,7 +307,9 @@ export class QuickItemDatabase {
         })
         this.saveStructure(fullKey, existingStructure);
 
-        this.logs.get == true && logAction(`Got items from <${fullKey}> succesfully. ${Date.now() - time}ms §r${date()}`, LogTypes.log)
+        if (this.logs.get) {
+            logAction(`Got items from <${fullKey}> succesfully. ${Date.now() - time}ms §r${date()}`, LogTypes.log)
+        }
 
         // Add the item we just got to cache
         this.quickAccess.set(fullKey, items)
@@ -322,8 +326,9 @@ export class QuickItemDatabase {
         const time = Date.now();
         key = this.settings.namespace + ":" + key;
         const exist = this.quickAccess.has(key) || world.structureManager.get(key)
-        this.logs.has == true && logAction(`Found key <${key}> succesfully. ${Date.now() - time}ms §r${date()}`, LogTypes.log)
-
+        if (this.logs.has) {
+            logAction(`Found key <${key}> succesfully. ${Date.now() - time}ms §r${date()}`, LogTypes.log)
+        }
 
         if (exist) return true; else return false
     }
@@ -341,7 +346,10 @@ export class QuickItemDatabase {
         const structure = world.structureManager.get(key)
         if (structure) world.structureManager.delete(key), world.setDynamicProperty(key, undefined);
         else throw new Error(`§cQIDB > The key <${key}> doesn't exist. §r${date()}`);
-        this.logs.delete == true && logAction(`Deleted key <${key}> succesfully. ${Date.now() - time}ms §r${date()}`, LogTypes.log)
+
+        if (this.logs.delete) {
+            logAction(`Deleted key <${key}> succesfully. ${Date.now() - time}ms §r${date()}`, LogTypes.log)
+        }
     }
 
     /**
@@ -352,7 +360,9 @@ export class QuickItemDatabase {
         const allIds = world.getDynamicPropertyIds()
         const ids: string[] = []
         allIds.filter(id => id.startsWith(this.settings.namespace + ":")).forEach(id => ids.push(id.replace(this.settings.namespace + ":", "")))
-        this.logs.keys == true && logAction(`Got the list of all the ${ids.length} keys. §r${date()}`, LogTypes.log)
+        if (this.logs.keys) {
+            logAction(`Got the list of all the ${ids.length} keys. §r${date()}`, LogTypes.log)
+        }
 
         return ids
     }
@@ -370,8 +380,9 @@ export class QuickItemDatabase {
         for (const key of filtered) {
             values.push(this.get(key))
         }
-        this.logs.values == true && logAction(`Got the list of all the ${values.length} values. ${Date.now() - time}ms §r${date()}`, LogTypes.log)
-
+        if (this.logs.values) {
+            logAction(`Got the list of all the ${values.length} values. ${Date.now() - time}ms §r${date()}`, LogTypes.log)
+        }
         return values
     }
 
@@ -390,7 +401,9 @@ export class QuickItemDatabase {
         for (const key of filtered) {
             this.delete(key)
         }
-        this.logs.clear == true && logAction(`Cleared, deleted ${filtered.length} values. ${Date.now() - time}ms §r${date()}`, LogTypes.log)
+        if (this.logs.clear) {
+            logAction(`Cleared, deleted ${filtered.length} values. ${Date.now() - time}ms §r${date()}`, LogTypes.log)
+        }
     }
 
     /**
@@ -609,7 +622,9 @@ export class QuickItemDatabase {
             containers.push((entity.getComponent(EntityComponentTypes.Inventory) as EntityInventoryComponent).container)
         })
 
-        this.logs.load == true && logAction(`Loaded ${entities.length} entities <${fullKey}> §r${date()}`, LogTypes.log)
+        if (this.logs.load) {
+            logAction(`Loaded ${entities.length} entities <${fullKey}> §r${date()}`, LogTypes.log)
+        }
         return { existingStructure, containers }
     }
 
