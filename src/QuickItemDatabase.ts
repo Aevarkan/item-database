@@ -70,6 +70,11 @@ interface ItemDatabaseSettings {
     saveRate: number
 }
 
+interface ItemDatabaseEntry {
+    key: string,
+    value: ItemStack[]
+}
+
 export interface ItemDatabaseLogSettings {
     startUp: boolean,
     save: boolean,
@@ -138,13 +143,9 @@ export class QuickItemDatabase {
      */
     private quickAccess: Map<string, ItemStack[]>
     /**
-     * Keys that are currently in the save queue.
+     * Entries that are currently waiting to be saved
      */
-    private queuedKeys: string[]
-    /**
-     * `ItemStack[]`s that are currently waiting to be saved.
-     */
-    private queuedValues: ItemStack[][]
+    private queuedEntries: ItemDatabaseEntry[]
     /**
      * Where the storage entity will be spawned.
      */
@@ -197,8 +198,7 @@ export class QuickItemDatabase {
             cacheSize: cacheSize,
             saveRate: saveRate
         }
-        this.queuedKeys = []
-        this.queuedValues = []
+        this.queuedEntries = []
         this.quickAccess = new Map()
         // We need to assign the dimension later due to early execution
         // this.dimension = world.getDimension("minecraft:overworld")
@@ -232,7 +232,7 @@ export class QuickItemDatabase {
         const startLog = () => {
             logAction(`Initialized successfully.§r namespace: ${this.settings.namespace} §r${date()}`, LogTypes.log)
             if (this.settings.saveRate > 1) {
-                logAction(`Using a saveRate bigger than 1 can cause slower game ticks and extreme lag while saving 1024 size keys. at <${this.settings.namespace}> §r${date()}`, LogTypes.warn)
+                logAction(`Using a saveRate bigger than 1 can cause slower game ticks and extreme lag while saving 1024 size entries. at <${this.settings.namespace}> §r${date()}`, LogTypes.warn)
             }
         }
 
@@ -303,10 +303,10 @@ export class QuickItemDatabase {
      */
     private _run() {
         const log = () => {
-            const entriesSavedSinceLast = lastAmountSaved - this.queuedKeys.length
+            const entriesSavedSinceLast = lastAmountSaved - this.queuedEntries.length
             const saveRate = (entriesSavedSinceLast / QuickItemDatabase.SAVE_DELAY_SECONDS).toFixed(0) || "//"
-            lastAmountSaved = this.queuedKeys.length
-            logAction(`Saving, Dont close the world.\n§r[Stats]-§eRemaining: ${this.queuedKeys.length} keys | speed: ${saveRate} keys/s §r${date()}`, LogTypes.log)
+            lastAmountSaved = this.queuedEntries.length
+            logAction(`Saving, Dont close the world.\n§r[Stats]-§eRemaining: ${this.queuedEntries.length} entries | speed: ${saveRate} entries/s §r${date()}`, LogTypes.log)
         }
 
         let wasSavingLastTick = false
@@ -325,7 +325,7 @@ export class QuickItemDatabase {
             }
 
             // If there are entries to save, make a new run, or save
-            if (this.queuedKeys.length) {
+            if (this.queuedEntries.length) {
 
                 if (runId === undefined) {
                     if (this.logs.save) {
@@ -340,11 +340,12 @@ export class QuickItemDatabase {
                     }, QuickItemDatabase.SAVE_DELAY_SECONDS * QuickItemDatabase.TICKS_PER_SECOND)
                 }
                 wasSavingLastTick = true
-                const k = Math.min(this.settings.saveRate, this.queuedKeys.length)
+                const k = Math.min(this.settings.saveRate, this.queuedEntries.length)
                 for (let i = 0; i < k; i++) {
-                    this.save(this.queuedKeys[0], this.queuedValues[0]);
-                    this.queuedKeys.shift();
-                    this.queuedValues.shift()
+                    const entryToSave = this.queuedEntries.shift()
+                    if (entryToSave) {
+                        this.save(entryToSave.key, entryToSave.value);
+                    }
                 }
             } else if (runId) {
                 system.clearRun(runId)
@@ -364,11 +365,11 @@ export class QuickItemDatabase {
         // Error notification if shutdown leads to lost data.
         // This does not attempt to save the data as it is too late to do so.
         system.beforeEvents.shutdown.subscribe(() => {
-            if (this.queuedKeys.length) {
+            if (this.queuedEntries.length) {
                 logAction(
                     `Fatal Error >§r§c World closed too early, items not saved correctly.  \n\n` +
                     `Namespace: ${this.settings.namespace}\n` +
-                    `Lost Keys amount: ${this.queuedKeys.length} §r${date()}\n\n\n\n`,
+                    `Number of lost entries: ${this.queuedEntries.length} §r${date()}\n\n\n\n`,
                     LogTypes.error
                 )
             }
@@ -466,8 +467,11 @@ export class QuickItemDatabase {
      * @param value The itemstacks to save.
      */
     private async queueSave(key: string, value: ItemStack[]) {
-        this.queuedKeys.push(key)
-        this.queuedValues.push(value)
+        const entry: ItemDatabaseEntry = {
+            key: key,
+            value: value
+        }
+        this.queuedEntries.push(entry)
     }
 
     /**
@@ -532,18 +536,21 @@ export class QuickItemDatabase {
 
         world.setDynamicProperty(fullKey, (Math.floor((itemStackArray.length - 1) / 256) + 1) || 1)
 
-        // Add to memory cache
+        // Add to memory cache, overriding any old ones
+        // Removing the entry first refreshes it and moves it to the end of the deletion queue
+        this.quickAccess.delete(fullKey)
         this.quickAccess.set(fullKey, itemStackArray)
         // Remove any in the queue and add the new one at the top
-        if (this.queuedKeys.includes(fullKey)) {
-            const i = this.queuedKeys.indexOf(fullKey)
-            this.queuedValues.splice(i, 1)
-            this.queuedKeys.splice(i, 1)
+        const duplicateIndex = this.queuedEntries.findIndex(entry => entry.key === fullKey)
+        if (duplicateIndex !== -1) {
+            this.queuedEntries.splice(duplicateIndex, 1)
         }
         this.queueSave(fullKey, itemStackArray)
 
-        this.logs.set == true && logAction(`Set key <${fullKey}> succesfully. ${Date.now() - time}ms §r${date()}`, LogTypes.log)
-
+        // Logging
+        if (this.logs.set) {
+            logAction(`Set key <${fullKey}> succesfully. ${Date.now() - time}ms §r${date()}`, LogTypes.log)
+        }
     }
 
     /**
