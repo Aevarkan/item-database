@@ -737,7 +737,7 @@ export class QuickItemDatabase {
      * @param key The identifier for the pair, this will be the name of the structure.
      * @param value The itemstacks to save.
      */
-    private async queueSave(key: string, value: ItemStack[]) {
+    private queueSave(key: string, value: ItemStack[]) {
         const entry: ItemDatabaseEntry = {
             key: key,
             value: value
