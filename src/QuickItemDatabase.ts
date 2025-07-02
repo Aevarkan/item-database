@@ -226,6 +226,174 @@ export class QuickItemDatabase {
     }
 
     /**
+     * Sets a value as a key in the item database.
+     * @param key The unique identifier of the value.
+     * @param value The `ItemStack[]` or `ItemStack` value to set.
+     * @throws Throws if `value` is an `ItemStack` array that has more than 1024 items.
+     * @remarks
+     * This function **can** be called in read-only mode, but the item is saved later in the tick. 
+     * 
+     * The maximum array size is 1024 elements.
+     */
+    public set(key: string, value: ItemStack[] | ItemStack): void {
+        const time = Date.now();
+        const fullKey = this.settings.namespace + ":" + key
+
+        // Put the ItemStack into an array if its not already
+        let itemStackArray = value
+        if (!(Array.isArray(itemStackArray))) {
+            itemStackArray = [itemStackArray]
+        }
+
+        // Throw an error if trying to save more than 1024 ItemStacks
+        if (itemStackArray.length > 1024) {
+            logAction(`Out of range: <${fullKey}> has more than 1024 ItemStacks §r${date()}`, LogTypes.error)
+            throw new Error(`§cQIDB > Out of range: <${fullKey}> has more than 1024 ItemStacks §r${date()}`)
+        }
+
+        world.setDynamicProperty(fullKey, (Math.floor((itemStackArray.length - 1) / 256) + 1) || 1)
+
+        // Add to memory cache, overriding any old ones
+        // Removing the entry first refreshes it and moves it to the end of the deletion queue
+        this.quickAccess.delete(fullKey)
+        this.quickAccess.set(fullKey, itemStackArray)
+        // Remove any in the queue and add the new one at the top
+        const duplicateIndex = this.queuedEntries.findIndex(entry => entry.key === fullKey)
+        if (duplicateIndex !== -1) {
+            this.queuedEntries.splice(duplicateIndex, 1)
+        }
+        this.queueSave(fullKey, itemStackArray)
+
+        // Logging
+        if (this.logs.set) {
+            logAction(`Set key <${fullKey}> succesfully. ${Date.now() - time}ms §r${date()}`, LogTypes.log)
+        }
+    }
+
+    /**
+     * Gets the value of a key from the item database.
+     * @param key The identifier of the value.
+     * @returns The `ItemStack[]` saved as `key`.
+     * @throws Throws if the key doesn't exist.
+     * @remarks
+     * This function can't be called in read-only mode.
+     * 
+     * Single `ItemStack`s saved using `set` will still return an array.
+     */
+    public get(key: string): ItemStack[] {
+        const time = Date.now();
+        const fullKey = this.settings.namespace + ":" + key
+
+        // Try quick access cache first
+        if (this.quickAccess.has(fullKey)) {
+            this.logs.get == true && logAction(`Got key <${fullKey}> succesfully. ${Date.now() - time}ms §r${date()}`, LogTypes.log)
+            return this.quickAccess.get(fullKey) as ItemStack[]
+        }
+
+        // Now we'll have to get the structure saved on disk
+        const structure = world.structureManager.get(fullKey)
+        if (!structure) {
+            logAction(`The key < ${fullKey} > doesn't exist.`, LogTypes.error)
+            throw new Error(`§cQIDB > The key < ${fullKey} > doesn't exist.`)
+        }
+        // Get the containers
+        const { existingStructure, containers } = this.getInventories(fullKey)
+        const items: ItemStack[] = []
+        containers.forEach((inv, index) => {
+            for (let i = 256 * index; i < 256 * index + 256; i++) items.push(inv.getItem(i - 256 * index) as ItemStack);
+            for (let i = 256 * index + 255; i >= 0; i--) if (!items[i]) items.pop(); else break;
+        })
+        this.saveStructure(fullKey, existingStructure);
+
+        this.logs.get == true && logAction(`Got items from <${fullKey}> succesfully. ${Date.now() - time}ms §r${date()}`, LogTypes.log)
+
+        // Add the item we just got to cache
+        this.quickAccess.set(fullKey, items)
+        return items
+    }
+
+    /**
+     * Checks if a key exists in the item database.
+     * @param key The identifier of the value.
+     * @returns `true` if the key exists, `false` if the key doesn't exist.
+     * @remarks This function can't be called in read-only mode.
+     */
+    public has(key: string): boolean {
+        const time = Date.now();
+        key = this.settings.namespace + ":" + key;
+        const exist = this.quickAccess.has(key) || world.structureManager.get(key)
+        this.logs.has == true && logAction(`Found key <${key}> succesfully. ${Date.now() - time}ms §r${date()}`, LogTypes.log)
+
+
+        if (exist) return true; else return false
+    }
+
+    /**
+     * Deletes a key from the item database.
+     * @param key The identifier of the value.
+     * @throws Throws if the key doesn't exist.
+     * @remarks This function can't be called in read-only mode.
+     */
+    public delete(key: string): void {
+        const time = Date.now();
+        key = this.settings.namespace + ":" + key;
+        if (this.quickAccess.has(key)) this.quickAccess.delete(key)
+        const structure = world.structureManager.get(key)
+        if (structure) world.structureManager.delete(key), world.setDynamicProperty(key, undefined);
+        else throw new Error(`§cQIDB > The key <${key}> doesn't exist. §r${date()}`);
+        this.logs.delete == true && logAction(`Deleted key <${key}> succesfully. ${Date.now() - time}ms §r${date()}`, LogTypes.log)
+    }
+
+    /**
+     * Gets all the keys of your namespace from item database.
+     * @returns All the keys as an array of strings.
+     */
+    public keys(): string[] {
+        const allIds = world.getDynamicPropertyIds()
+        const ids: string[] = []
+        allIds.filter(id => id.startsWith(this.settings.namespace + ":")).forEach(id => ids.push(id.replace(this.settings.namespace + ":", "")))
+        this.logs.keys == true && logAction(`Got the list of all the ${ids.length} keys. §r${date()}`, LogTypes.log)
+
+        return ids
+    }
+
+    /**
+     * Gets all the keys of your namespace from item database (takes some time if values aren't alredy loaded in quickAccess).
+     * @returns All values as an `ItemStack[]` array.
+     * @remarks This function can't be called in read-only mode.
+     */
+    public values(): ItemStack[][] {
+        const time = Date.now();
+        const allIds = world.getDynamicPropertyIds()
+        const values: ItemStack[][] = []
+        const filtered = allIds.filter(id => id.startsWith(this.settings.namespace + ":")).map(id => id.replace(this.settings.namespace + ":", ""))
+        for (const key of filtered) {
+            values.push(this.get(key))
+        }
+        this.logs.values == true && logAction(`Got the list of all the ${values.length} values. ${Date.now() - time}ms §r${date()}`, LogTypes.log)
+
+        return values
+    }
+
+    /**
+     * Clears all, CAN NOT REWIND.
+     * @remarks
+     * This function can't be called in read-only mode.
+     * 
+     * This clears all structures that are using the namespace that also have a key in the database.
+     * This can possibly include your own ones.
+     */
+    public clear() {
+        const time = Date.now();
+        const allIds = world.getDynamicPropertyIds()
+        const filtered = allIds.filter(id => id.startsWith(this.settings.namespace + ":")).map(id => id.replace(this.settings.namespace + ":", ""))
+        for (const key of filtered) {
+            this.delete(key)
+        }
+        this.logs.clear == true && logAction(`Cleared, deleted ${filtered.length} values. ${Date.now() - time}ms §r${date()}`, LogTypes.log)
+    }
+
+    /**
      * Initialisation logic for the database.
      */
     private _start() {
@@ -509,171 +677,4 @@ export class QuickItemDatabase {
         await this.saveStructure(key, existingStructure);
     }
 
-    /**
-     * Sets a value as a key in the item database.
-     * @param key The unique identifier of the value.
-     * @param value The `ItemStack[]` or `ItemStack` value to set.
-     * @throws Throws if `value` is an `ItemStack` array that has more than 1024 items.
-     * @remarks
-     * This function **can** be called in read-only mode, but the item is saved later in the tick. 
-     * 
-     * The maximum array size is 1024 elements.
-     */
-    public set(key: string, value: ItemStack[] | ItemStack): void {
-        const time = Date.now();
-        const fullKey = this.settings.namespace + ":" + key
-
-        // Put the ItemStack into an array if its not already
-        let itemStackArray = value
-        if (!(Array.isArray(itemStackArray))) {
-            itemStackArray = [itemStackArray]
-        }
-
-        // Throw an error if trying to save more than 1024 ItemStacks
-        if (itemStackArray.length > 1024) {
-            logAction(`Out of range: <${fullKey}> has more than 1024 ItemStacks §r${date()}`, LogTypes.error)
-            throw new Error(`§cQIDB > Out of range: <${fullKey}> has more than 1024 ItemStacks §r${date()}`)
-        }
-
-        world.setDynamicProperty(fullKey, (Math.floor((itemStackArray.length - 1) / 256) + 1) || 1)
-
-        // Add to memory cache, overriding any old ones
-        // Removing the entry first refreshes it and moves it to the end of the deletion queue
-        this.quickAccess.delete(fullKey)
-        this.quickAccess.set(fullKey, itemStackArray)
-        // Remove any in the queue and add the new one at the top
-        const duplicateIndex = this.queuedEntries.findIndex(entry => entry.key === fullKey)
-        if (duplicateIndex !== -1) {
-            this.queuedEntries.splice(duplicateIndex, 1)
-        }
-        this.queueSave(fullKey, itemStackArray)
-
-        // Logging
-        if (this.logs.set) {
-            logAction(`Set key <${fullKey}> succesfully. ${Date.now() - time}ms §r${date()}`, LogTypes.log)
-        }
-    }
-
-    /**
-     * Gets the value of a key from the item database.
-     * @param key The identifier of the value.
-     * @returns The `ItemStack[]` saved as `key`.
-     * @throws Throws if the key doesn't exist.
-     * @remarks
-     * This function can't be called in read-only mode.
-     * 
-     * Single `ItemStack`s saved using `set` will still return an array.
-     */
-    public get(key: string): ItemStack[] {
-        const time = Date.now();
-        const fullKey = this.settings.namespace + ":" + key
-
-        // Try quick access cache first
-        if (this.quickAccess.has(fullKey)) {
-            this.logs.get == true && logAction(`Got key <${fullKey}> succesfully. ${Date.now() - time}ms §r${date()}`, LogTypes.log)
-            return this.quickAccess.get(fullKey) as ItemStack[]
-        }
-
-        // Now we'll have to get the structure saved on disk
-        const structure = world.structureManager.get(fullKey)
-        if (!structure) {
-            logAction(`The key < ${fullKey} > doesn't exist.`, LogTypes.error)
-            throw new Error(`§cQIDB > The key < ${fullKey} > doesn't exist.`)
-        }
-        // Get the containers
-        const { existingStructure, containers } = this.getInventories(fullKey)
-        const items: ItemStack[] = []
-        containers.forEach((inv, index) => {
-            for (let i = 256 * index; i < 256 * index + 256; i++) items.push(inv.getItem(i - 256 * index) as ItemStack);
-            for (let i = 256 * index + 255; i >= 0; i--) if (!items[i]) items.pop(); else break;
-        })
-        this.saveStructure(fullKey, existingStructure);
-
-        this.logs.get == true && logAction(`Got items from <${fullKey}> succesfully. ${Date.now() - time}ms §r${date()}`, LogTypes.log)
-
-        // Save the item we just got to cache
-        this.quickAccess.set(fullKey, items)
-        return items
-    }
-
-    /**
-     * Checks if a key exists in the item database.
-     * @param key The identifier of the value.
-     * @returns `true` if the key exists, `false` if the key doesn't exist.
-     * @remarks This function can't be called in read-only mode.
-     */
-    public has(key: string): boolean {
-        const time = Date.now();
-        key = this.settings.namespace + ":" + key;
-        const exist = this.quickAccess.has(key) || world.structureManager.get(key)
-        this.logs.has == true && logAction(`Found key <${key}> succesfully. ${Date.now() - time}ms §r${date()}`, LogTypes.log)
-
-
-        if (exist) return true; else return false
-    }
-
-    /**
-     * Deletes a key from the item database.
-     * @param key The identifier of the value.
-     * @throws Throws if the key doesn't exist.
-     * @remarks This function can't be called in read-only mode.
-     */
-    public delete(key: string): void {
-        const time = Date.now();
-        key = this.settings.namespace + ":" + key;
-        if (this.quickAccess.has(key)) this.quickAccess.delete(key)
-        const structure = world.structureManager.get(key)
-        if (structure) world.structureManager.delete(key), world.setDynamicProperty(key, undefined);
-        else throw new Error(`§cQIDB > The key <${key}> doesn't exist. §r${date()}`);
-        this.logs.delete == true && logAction(`Deleted key <${key}> succesfully. ${Date.now() - time}ms §r${date()}`, LogTypes.log)
-    }
-
-    /**
-     * Gets all the keys of your namespace from item database.
-     * @returns All the keys as an array of strings.
-     */
-    public keys(): string[] {
-        const allIds = world.getDynamicPropertyIds()
-        const ids: string[] = []
-        allIds.filter(id => id.startsWith(this.settings.namespace + ":")).forEach(id => ids.push(id.replace(this.settings.namespace + ":", "")))
-        this.logs.keys == true && logAction(`Got the list of all the ${ids.length} keys. §r${date()}`, LogTypes.log)
-
-        return ids
-    }
-
-    /**
-     * Gets all the keys of your namespace from item database (takes some time if values aren't alredy loaded in quickAccess).
-     * @returns All values as an `ItemStack[]` array.
-     * @remarks This function can't be called in read-only mode.
-     */
-    public values(): ItemStack[][] {
-        const time = Date.now();
-        const allIds = world.getDynamicPropertyIds()
-        const values: ItemStack[][] = []
-        const filtered = allIds.filter(id => id.startsWith(this.settings.namespace + ":")).map(id => id.replace(this.settings.namespace + ":", ""))
-        for (const key of filtered) {
-            values.push(this.get(key))
-        }
-        this.logs.values == true && logAction(`Got the list of all the ${values.length} values. ${Date.now() - time}ms §r${date()}`, LogTypes.log)
-
-        return values
-    }
-
-    /**
-     * Clears all, CAN NOT REWIND.
-     * @remarks
-     * This function can't be called in read-only mode.
-     * 
-     * This clears all structures that are using the namespace that also have a key in the database.
-     * This can possibly include your own ones.
-     */
-    public clear() {
-        const time = Date.now();
-        const allIds = world.getDynamicPropertyIds()
-        const filtered = allIds.filter(id => id.startsWith(this.settings.namespace + ":")).map(id => id.replace(this.settings.namespace + ":", ""))
-        for (const key of filtered) {
-            this.delete(key)
-        }
-        this.logs.clear == true && logAction(`Cleared, deleted ${filtered.length} values. ${Date.now() - time}ms §r${date()}`, LogTypes.log)
-    }
 }
