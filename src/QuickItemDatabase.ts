@@ -98,7 +98,10 @@ const defaultLogs: ItemDatabaseLogSettings = {
 
 export class QuickItemDatabase {
 
-    
+    /**
+     * The number of ticks per second in Minecraft is normally 20.
+     */
+    private static readonly TICKS_PER_SECOND: number = 20
     /**
      * The entity used for storing items.
      */
@@ -121,6 +124,10 @@ export class QuickItemDatabase {
      * The Y level where the entities are spawned in.
      */
     private static readonly SPAWN_LOCATION_Y_COORDINATE: number = 318
+    /**
+     * The delay between saving each entry in seconds.
+     */
+    private static readonly SAVE_DELAY_SECONDS: number = 6
     /**
      * The name of the ticking area used for database operations.
      */
@@ -273,7 +280,7 @@ export class QuickItemDatabase {
         }
 
         // Check if there's a player spawned in
-        const existingPlayer = world.getPlayers()[0]
+        const existingPlayer = world.getPlayers()[0] as Player | undefined
         if (existingPlayer) {
             // Call that function we just defined
             initialiseLocation(existingPlayer)
@@ -286,36 +293,53 @@ export class QuickItemDatabase {
                 world.afterEvents.playerSpawn.unsubscribe(spawnListener)
             })
         }
-        
 
-        // Run logic
+        this._run()
+        this._registerShutdown()
+    }
 
-        // Arrow function to preserve `this`
+    /**
+     * Functionality for actually saving the database entries.
+     */
+    private _run() {
         const log = () => {
-            const abc = (-(this.queuedKeys.length - lastam) / 6).toFixed(0) || '//'
-            this.logs.save == true && logAction(`Saving, Dont close the world.\n§r[Stats]-§eRemaining: ${this.queuedKeys.length} keys | speed: ${abc} keys/s §r${date()}`, LogTypes.log)
-            lastam = this.queuedKeys.length
+            const entriesSavedSinceLast = lastAmountSaved - this.queuedKeys.length
+            const saveRate = (entriesSavedSinceLast / QuickItemDatabase.SAVE_DELAY_SECONDS).toFixed(0) || "//"
+            lastAmountSaved = this.queuedKeys.length
+            logAction(`Saving, Dont close the world.\n§r[Stats]-§eRemaining: ${this.queuedKeys.length} keys | speed: ${saveRate} keys/s §r${date()}`, LogTypes.log)
         }
 
-        let show = true
+        let wasSavingLastTick = false
         let runId: number | undefined
-        let lastam: number
+        let lastAmountSaved: number = 0
         system.runInterval(() => {
-            const diff = this.quickAccess.size - this.settings.cacheSize;
-            if (diff > 0) {
-                for (let i = 0; i < diff; i++) {
-                    this.quickAccess.delete(this.quickAccess.keys().next()?.value);
+            // Clear items from the cache if it's too big
+            const cacheSettingDiff = this.quickAccess.size - this.settings.cacheSize;
+            if (cacheSettingDiff > 0) {
+                for (let i = 0; i < cacheSettingDiff; i++) {
+                    const nextEntry = this.quickAccess.keys().next()?.value
+                    if (nextEntry) {
+                        this.quickAccess.delete(nextEntry)
+                    }
                 }
             }
+
+            // If there are entries to save, make a new run, or save
             if (this.queuedKeys.length) {
 
                 if (runId === undefined) {
-                    log()
-                    runId = system.runInterval(() => {
+                    if (this.logs.save) {
                         log()
-                    }, 120)
+                    }
+
+                    runId = system.runInterval(() => {
+                        if (this.logs.save) {
+                            log()
+                        }
+
+                    }, QuickItemDatabase.SAVE_DELAY_SECONDS * QuickItemDatabase.TICKS_PER_SECOND)
                 }
-                show = false
+                wasSavingLastTick = true
                 const k = Math.min(this.settings.saveRate, this.queuedKeys.length)
                 for (let i = 0; i < k; i++) {
                     this.save(this.queuedKeys[0], this.queuedValues[0]);
@@ -325,12 +349,18 @@ export class QuickItemDatabase {
             } else if (runId) {
                 system.clearRun(runId)
                 runId = undefined
-                show == false && this.logs.save == true && logAction(`Saved, You can now close the world safely. §r${date()}`, LogTypes.log)
-                show = true
-                return
+                if (wasSavingLastTick && this.logs.save)  {
+                    logAction(`Saved, You can now close the world safely. §r${date()}`, LogTypes.log)
+                }
+                wasSavingLastTick = false
             }
         }, 1)
+    }
 
+    /**
+     * Subscribes to the shutdown event to give a notification.
+     */
+    private _registerShutdown() {
         // Error notification if shutdown leads to lost data.
         // This does not attempt to save the data as it is too late to do so.
         system.beforeEvents.shutdown.subscribe(() => {
