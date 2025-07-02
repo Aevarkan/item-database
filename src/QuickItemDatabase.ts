@@ -346,22 +346,37 @@ export class QuickItemDatabase {
     }
 
     /**
-     * Deletes a key from the item database.
+     * Deletes an entry from the item database.
      * @param key The identifier of the value.
-     * @throws Throws if the key doesn't exist.
+     * @returns `true` if the entry existed, `false` if it didn't.
      * @remarks This function can't be called in read-only mode.
      */
-    public delete(key: string): void {
-        const time = Date.now();
-        key = this.settings.namespace + ":" + key;
-        if (this.quickAccess.has(key)) this.quickAccess.delete(key)
-        const structure = world.structureManager.get(key)
-        if (structure) world.structureManager.delete(key), world.setDynamicProperty(key, undefined);
-        else throw new Error(`§cQIDB > The key <${key}> doesn't exist. §r${date()}`);
+    public delete(key: string): boolean {
+        const time = Date.now()
+        const fullKey = this.settings.namespace + ":" + key
 
-        if (this.logs.delete) {
-            logAction(`Deleted key <${key}> succesfully. ${Date.now() - time}ms §r${date()}`, LogTypes.log)
+        // Delete from the cache and delete the structure from world
+        const inCache = this.quickAccess.delete(fullKey)
+        const inStructure = world.structureManager.delete(fullKey)
+
+        // If the entry existed, we clear the dynamic property
+        let entryExisted = false
+        if (inCache || inStructure) {
+            world.setDynamicProperty(fullKey, undefined)
+            entryExisted = true
         }
+
+        // Logging
+        if (this.logs.delete) {
+            const timeDifference = Date.now() - time
+            if (entryExisted) {
+                logAction(`Deleted entry <${fullKey}> succesfully. ${timeDifference}ms §r${date()}`, LogTypes.log)
+            } else {
+                logAction(`The entry <${fullKey}> doesn't exist. ${timeDifference}ms §r${date()}`, LogTypes.log)
+            }
+        }
+
+        return entryExisted
     }
 
     /**
